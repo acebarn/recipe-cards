@@ -53,7 +53,7 @@ Regeln:
 - "## Schritte": nummerierte Liste "1. ...". Wichtige Zutaten, Zeiten und Temperaturen mit **fett** hervorheben.
 - "## Hinweise": NUR kurze, praktische Tipps als "- ..." (höchstens 3 Stichpunkte, je ein knapper Satz). KEINE langen Hintergrundtexte, Anekdoten oder wörtlichen Zitate. Weglassen, wenn es keine echten Tipps gibt.
 
-Gib genau diese Struktur aus:
+Gib genau diese Struktur aus. WICHTIG: Die erste Zeile der Antwort MUSS "---" sein und das Frontmatter MUSS mit einer Zeile "---" abgeschlossen werden:
 ---
 title:
 tags:
@@ -228,11 +228,31 @@ function partsFor(input: Input): Part[] {
   return [{ text: `${buildPrompt()}\n\n---\n${src}Rezept-Inhalt:\n\n${input.text}` }];
 }
 
-/** Entfernt evtl. doch vorhandene ```-Code-Fences. */
+/**
+ * Bereinigt die Modellausgabe und repariert das Frontmatter:
+ * - entfernt ```-Code-Fences
+ * - wenn das öffnende "---" fehlt (Gemini lässt es gelegentlich weg) oder Vorspann
+ *   davor steht, wird der YAML-Kopf vor der ersten Markdown-Überschrift sauber
+ *   in "---\n…\n---" eingerahmt, damit der Parser das Frontmatter zuverlässig findet.
+ */
 function stripFences(s: string): string {
-  const t = s.trim();
+  let t = s.trim();
   if (t.startsWith("```")) {
-    return t.replace(/^```[a-zA-Z]*\r?\n/, "").replace(/\r?\n```\s*$/, "").trim();
+    t = t.replace(/^```[a-zA-Z]*\r?\n/, "").replace(/\r?\n```\s*$/, "").trim();
+  }
+  if (t.startsWith("---")) return t;
+
+  // Body beginnt bei der ersten Markdown-Überschrift; alles davor ist der YAML-Kopf.
+  const headingIdx = t.search(/(?:^|\n)#{1,6}\s/);
+  if (headingIdx >= 0) {
+    const head = t
+      .slice(0, headingIdx)
+      .split(/\r?\n/)
+      .filter((line) => line.trim() !== "---") // verirrte ---/Begrenzer entfernen
+      .join("\n")
+      .trim();
+    const body = t.slice(headingIdx).replace(/^\n+/, "");
+    if (head) return `---\n${head}\n---\n\n${body}`;
   }
   return t;
 }
