@@ -24,11 +24,11 @@ last_modified: 2025-10-20
 
 - ½ Würfel Hefe  
 - 200 g Zucker  
-- 400 ml Mandelmilch *(alternativ 200 ml Hafermilch)*  
-- 200 g vegane Margarine *(weich oder zerlassen)*  
+- 400 ml Mandelmilch (alternativ 200 ml Hafermilch)
+- 200 g vegane Margarine (weich oder zerlassen)
 - 2 EL Vanillezucker  
 - 400 g Mehl  
-- 100 ml Club-Mate *(alternativ 100 ml Sprudel)*  
+- 100 ml Club-Mate (alternativ 100 ml Sprudel)
 - 1 TL Salz  
 
 ## Schritte
@@ -48,4 +48,3 @@ last_modified: 2025-10-20
 ## Versionshistory
 - 2025-10-20: Erstellt
 
-<!-- MARKER FOR MAPPER SCRIPT -->

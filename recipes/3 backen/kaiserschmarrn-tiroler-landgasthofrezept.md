@@ -18,7 +18,7 @@ equipment:
 difficulty: medium
 source_url: https://www.chefkoch.de/rezepte/1031841208350942/Kaiserschmarrn-Tiroler-Landgasthofrezept.html
 theme_color:
-image_subject: a plate of fluffy shredded Kaiserschmarrn pancakes dusted with powdered sugar
+image_subject: a plate of fluffy shredded austrian Kaiserschmarrn topped with powdered sugar and raisins
 last_modified: 2026-05-24
 ---
 # Kaiserschmarrn - Tiroler Landgasthofrezept

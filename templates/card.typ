@@ -150,10 +150,19 @@
     align: (left + top, right + horizon),
     {
       // Akzentblock hinter dem Titel: kräftige Fläche, Knockout-Schrift in Weiß.
-      block(fill: accent, inset: (x: 9pt, y: 5pt))[
-        #text(size: 26pt, weight: "bold", fill: white, hyphenate: false)[#data.title]
+      // top-edge/bottom-edge an Versalhöhe bzw. Unterlänge: so wirkt das
+      // symmetrische Padding optisch gleich (Oberkante Großbuchstaben ↔ Unterlänge p/g).
+      block(fill: accent, inset: (x: 10pt, y: 7pt))[
+        #text(
+          size: 26pt,
+          weight: "bold",
+          fill: white,
+          hyphenate: false,
+          top-edge: "bounds",
+          bottom-edge: "bounds",
+        )[#data.title]
       ]
-      v(6pt)
+      v(4pt)
       {
         let chips = ()
         if data.category != none { chips.push(chip("Kategorie", data.category, rgb(theme.chipBg))) }
@@ -161,43 +170,43 @@
         if data.servings != none { chips.push(chip("Portionen", data.servings, rgb(theme.chipBg))) }
         for t in data.times { chips.push(chip(t.label, t.value, rgb(theme.chipBg))) }
         if chips.len() > 0 {
-          set par(leading: 9pt)
+          set par(leading: 8pt)
           for c in chips [#c #h(4pt)]
         }
       }
       if data.equipment.len() > 0 {
-        v(6pt)
+        v(4pt)
         text(size: 6.5pt, fill: muted)[#upper("Zubehör")]
-        v(3pt)
-        set par(leading: 8pt)
+        v(2pt)
+        set par(leading: 7pt)
         for e in data.equipment [#equip-pill(e, theme)#h(4pt)]
       }
     },
-    badge-accented(data, theme, 46mm),
+    badge-accented(data, theme, 44mm),
   )
 
-  v(7pt)
+  v(5pt)
   bauhaus-divider(accent)
-  v(8pt)
+  v(6pt)
 
   // Zutaten-Panel über volle Breite, zweispaltig.
   block(
     fill: rgb(theme.panelBg),
-    inset: 11pt,
+    inset: 9pt,
     radius: 6pt,
     width: 100%,
     {
       set text(fill: rgb(theme.panelText))
       text(size: 12pt, weight: "bold", fill: rgb(theme.panelHeading))[Zutaten]
-      v(6pt)
+      v(4pt)
       columns(2, gutter: 18pt)[
         #for (i, sec) in data.ingredients.enumerate() {
           if sec.name != none {
-            if i > 0 { v(5pt) }
+            if i > 0 { v(3pt) }
             text(size: 9.5pt, weight: "bold", fill: rgb(theme.panelHeading))[#sec.name]
-            v(2pt)
+            v(1pt)
           }
-          set list(indent: 0pt, body-indent: 6pt, spacing: 5pt, marker: sq-marker(accent))
+          set list(indent: 0pt, body-indent: 6pt, spacing: 3.5pt, marker: sq-marker(accent))
           for item in sec.items [- #item]
         }
       ]
@@ -221,26 +230,27 @@
     badge(data, theme, 20mm),
   )
 
-  v(6pt)
+  v(5pt)
   bauhaus-divider(accent)
-  v(8pt)
+  v(6pt)
 
   columns(2, gutter: 20pt)[
     #{
-      set enum(indent: 0pt, body-indent: 10pt, spacing: 8pt, numbering: n => num-circle(n, accent))
+      set enum(indent: 0pt, body-indent: 10pt, spacing: 6pt, numbering: n => num-circle(n, accent))
       for step in data.steps [+ #render-md(step.text)]
     }
     #if data.notes.len() > 0 {
-      v(8pt)
+      v(6pt)
       block(
         width: 100%,
         fill: rgb(theme.noteBg),
-        inset: 9pt,
+        inset: 8pt,
         radius: 5pt,
+        breakable: false, // als Ganzes umbrechen (in die nächste Spalte), nicht mitten im Kasten teilen
         {
           text(size: 9pt, weight: "bold", fill: accent)[Hinweise]
           v(3pt)
-          set list(indent: 0pt, body-indent: 6pt, spacing: 4pt, marker: sq-marker(accent))
+          set list(indent: 0pt, body-indent: 6pt, spacing: 3.5pt, marker: sq-marker(accent))
           for n in data.notes [- #n]
         },
       )
