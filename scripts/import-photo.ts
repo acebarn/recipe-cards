@@ -8,7 +8,7 @@ import { parseRecipe } from "../src/parse.ts";
 import { slugify } from "../src/render.ts";
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash";
 
 const MIME: Record<string, string> = {
   jpg: "image/jpeg",
@@ -35,6 +35,7 @@ Antworte AUSSCHLIESSLICH mit dem Markdown-Inhalt – keine Code-Fences, keine Er
 
 Regeln:
 - Sprache des Rezepts: Deutsch. Übersetze fremdsprachige Inhalte ins Deutsche.
+- WICHTIG: Formuliere Schritte und Hinweise in EIGENEN, knappen Worten neu (sinngemäß, nicht wörtlich von der Vorlage abgeschrieben). Zutaten, Mengen und Kerndaten exakt übernehmen.
 - Fülle nur Felder, die du sicher erkennst; unsichere Felder leer lassen (Schlüssel trotzdem ausgeben).
 - prep_time/cook_time/rest_time: als "H:MM" (z.B. 1:30) ODER als reine Minutenzahl. Nur angeben, wenn erkennbar.
 - servings: ganze Zahl (Portionen/Stück).
@@ -111,13 +112,28 @@ async function extractRecipe(
   }
 
   const data = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Part[] } }>;
+    candidates?: Array<{ content?: { parts?: Part[] }; finishReason?: string }>;
   };
-  const text = (data.candidates?.[0]?.content?.parts ?? [])
+  const cand = data.candidates?.[0];
+  const text = (cand?.content?.parts ?? [])
     .map((p) => p.text ?? "")
     .join("")
     .trim();
-  if (!text) throw new Error(`Leere Antwort: ${JSON.stringify(data).slice(0, 300)}`);
+  if (!text) {
+    const reason = cand?.finishReason ?? "?";
+    if (reason === "RECITATION") {
+      throw new Error(
+        "Gemini hat die Antwort wegen des Recitation-Filters blockiert " +
+          "(Ausgabe zu wörtlich an geschütztem Text). Tipp: erneut versuchen oder ein anderes " +
+          "Modell wählen (--model gemini-3-flash-preview / gemini-2.5-pro). " +
+          "Das Skript bittet bereits um Paraphrasierung.",
+      );
+    }
+    if (reason === "SAFETY") {
+      throw new Error("Gemini hat die Antwort aus Sicherheitsgründen blockiert (finishReason: SAFETY).");
+    }
+    throw new Error(`Leere Antwort (finishReason: ${reason}): ${JSON.stringify(data).slice(0, 200)}`);
+  }
   return stripFences(text);
 }
 

@@ -142,7 +142,7 @@ npm start -- --category backen    # nur Kategorie "backen"
 
 Aus einem **Foto** (z. B. einer Kochbuchseite) lässt sich automatisch ein
 Rezept-Entwurf im Template-Format erzeugen. Ein multimodales Model
-(**Google Gemini**, `gemini-2.5-flash`) liest das Bild aus und füllt Frontmatter,
+(**Google Gemini**, `gemini-3.5-flash`) liest das Bild aus und füllt Frontmatter,
 Zutaten, Schritte und Hinweise – inklusive eines englischen `image_subject` für
 die spätere Bildgenerierung.
 
@@ -166,7 +166,7 @@ die spätere Bildgenerierung.
 | `--category <name>` | Ziel-Kategorieordner erzwingen (sonst aus dem Foto abgeleitet) |
 | `--stdout` | Ergebnis nur ausgeben, keine Datei schreiben |
 | `--force` | vorhandene Datei überschreiben statt zu nummerieren |
-| `--model <name>` | Gemini-Modell (Standard: `gemini-2.5-flash`) |
+| `--model <name>` | Gemini-Modell (Standard: `gemini-3.5-flash`) |
 
 Der Entwurf landet als `.md` im passenden Kategorie-Ordner (z. B. `category: salate`
 → `recipes/4 salate/`). Unterstützt gängige Foto-Formate inkl. **HEIC**.
