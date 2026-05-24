@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { loadDotEnv } from "../src/env.ts";
 import type { Recipe } from "../src/model.ts";
 import { parseRecipe } from "../src/parse.ts";
 import { slugify } from "../src/render.ts";
@@ -26,18 +27,6 @@ const STYLE =
   "no plate, no dish, no cutlery, no background scenery, " +
   "absolutely no text, no words, no letters, no captions, no labels, no watermark, " +
   "consistent hand-painted watercolor style";
-
-/** Liest KEY=VALUE-Zeilen aus einer .env, ohne Zusatzabhängigkeit. */
-function loadDotEnv(root: string): void {
-  const file = join(root, ".env");
-  if (!existsSync(file)) return;
-  for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/i);
-    if (!m) continue;
-    const value = m[2].replace(/^["']|["']$/g, "");
-    if (!(m[1] in process.env)) process.env[m[1]] = value;
-  }
-}
 
 /**
  * Baut den englischen Bild-Prompt. Priorität:

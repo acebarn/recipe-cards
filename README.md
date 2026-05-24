@@ -19,6 +19,7 @@ Pro Rezept wird eine Grundfarbe bestimmt, die sich durch Akzente, Flächen und F
 - **[Typst](https://github.com/typst/typst) ≥ 0.14** im `PATH` (`typst --version`).
 - Die Schrift **Futura** (auf macOS vorinstalliert). Fehlt sie, greift automatisch Helvetica Neue/Arial.
 - *Optional* für die Bildgenerierung: ein **Pixazo-API-Key** (siehe [Bilder generieren](#bilder-generieren)).
+- *Optional* für den Foto-Import: ein **Google-Gemini-API-Key** (siehe [Rezept aus Foto importieren](#rezept-aus-foto-importieren)).
 
 ## Installation
 
@@ -134,6 +135,44 @@ Unicode-Brüchen (`½ Pck. → 1 Pck.`, `¼ TL → ⅛ TL`). Schritttexte bleibe
 npm start -- --scale 2            # alle Mengen verdoppeln
 npm start -- --category backen    # nur Kategorie "backen"
 ```
+
+---
+
+## Rezept aus Foto importieren
+
+Aus einem **Foto** (z. B. einer Kochbuchseite) lässt sich automatisch ein
+Rezept-Entwurf im Template-Format erzeugen. Ein multimodales Model
+(**Google Gemini**, `gemini-2.5-flash`) liest das Bild aus und füllt Frontmatter,
+Zutaten, Schritte und Hinweise – inklusive eines englischen `image_subject` für
+die spätere Bildgenerierung.
+
+1. Gemini-API-Key hinterlegen ([aistudio.google.com/apikey](https://aistudio.google.com/apikey)):
+
+   ```bash
+   cp .env.example .env
+   # in .env eintragen:  GEMINI_API_KEY=dein-key
+   ```
+
+2. Foto importieren:
+
+   ```bash
+   npm run import -- pfad/zum/foto.jpg
+   # mehrere Fotos = mehrseitiges Rezept:
+   npm run import -- seite1.jpg seite2.jpg
+   ```
+
+| Option | Beschreibung |
+|--------|--------------|
+| `--category <name>` | Ziel-Kategorieordner erzwingen (sonst aus dem Foto abgeleitet) |
+| `--stdout` | Ergebnis nur ausgeben, keine Datei schreiben |
+| `--force` | vorhandene Datei überschreiben statt zu nummerieren |
+| `--model <name>` | Gemini-Modell (Standard: `gemini-2.5-flash`) |
+
+Der Entwurf landet als `.md` im passenden Kategorie-Ordner (z. B. `category: salate`
+→ `recipes/4 salate/`). Unterstützt gängige Foto-Formate inkl. **HEIC**.
+
+> **Hinweis:** Das Ergebnis ist ein **Entwurf** – bitte vor dem Drucken prüfen und
+> korrigieren. Danach `npm run images` (Aquarell-Bild) und `npm start` (Karte rendern).
 
 ---
 
