@@ -1,0 +1,188 @@
+# recipe-cards
+
+Ein CLI-Tool, das eine Rezeptsammlung im YAML-/Markdown-Format scannt und daraus
+druckfertige **A5-Rezeptkarten im Querformat** rendert – über ein
+[Typst](https://typst.app)-Template im Bauhaus-Stil.
+
+Jede Karte besteht aus genau zwei Seiten:
+
+- **Vorderseite:** Titel, Metadaten (Zeiten, Portionen, Schwierigkeit), Zubehör und die Zutatenliste – dazu ein großes KI-Aquarell-Symbol des Gerichts.
+- **Rückseite:** die Zubereitungsschritte (plus Hinweise), mit demselben Symbol kleiner oben rechts.
+
+Pro Rezept wird eine Grundfarbe bestimmt, die sich durch Akzente, Flächen und Formen zieht.
+
+---
+
+## Voraussetzungen
+
+- **Node.js ≥ 23.6** – die TypeScript-Dateien werden ohne Build-Schritt direkt ausgeführt.
+- **[Typst](https://github.com/typst/typst) ≥ 0.14** im `PATH` (`typst --version`).
+- Die Schrift **Futura** (auf macOS vorinstalliert). Fehlt sie, greift automatisch Helvetica Neue/Arial.
+- *Optional* für die Bildgenerierung: ein **Pixazo-API-Key** (siehe [Bilder generieren](#bilder-generieren)).
+
+## Installation
+
+```bash
+git clone https://github.com/acebarn/recipe-cards.git
+cd recipe-cards
+npm install
+```
+
+## Schnellstart
+
+```bash
+# Alle Rezepte aus ./recipes nach ./out rendern
+npm start
+```
+
+Für jedes Rezept entsteht eine PDF in `out/`, z. B. `out/zwiebelkuchen.pdf`.
+Die CLI meldet pro Karte die Seitenzahl und warnt, falls eine Karte über zwei Seiten läuft.
+
+---
+
+## Rezeptformat
+
+Jedes Rezept ist eine `.md`-Datei mit **YAML-Frontmatter** (Metadaten) und einem
+strukturierten Markdown-Body. Verzeichnisse unter `recipes/` werden rekursiv durchsucht;
+`Recipe Template.md` und versteckte Dateien werden übersprungen.
+
+```markdown
+---
+title: Zwiebelkuchen
+tags:
+  - quiche
+category: backen
+grouping: deftig
+prep_time: 1:50        # "H:MM" oder reine Minutenzahl (z. B. 20)
+cook_time: 0:40
+rest_time: 0:30
+servings: 1            # Zahl; mit --scale skalierbar
+equipment:
+  - auflaufform
+  - pfanne
+difficulty: medium     # easy/simple/einfach · medium/mittel · hard/schwer
+source_url:
+theme_color:           # optional, #hex – sonst Farbe aus Bild/Titel
+image_subject: a single slice of savory onion tart topped with browned tofu cubes
+last_modified: 2025-10-20
+---
+# Zwiebelkuchen
+
+## Zutaten
+### Teig
+- 250 g Mehl (Type 405)
+- ½ Pck. Trockenhefe
+### Füllung
+- 1 kg Zwiebel
+- 200 g Schmand
+
+## Schritte
+1. **Mehl** in eine Schüssel geben …
+2. Teig **10 Minuten** kneten …
+
+## Hinweise
+- Tofu lässt sich mit Räucherpaprika verfeinern.
+```
+
+### Felder im Frontmatter
+
+| Feld | Pflicht | Beschreibung |
+|------|:------:|--------------|
+| `title` | ✓ | Titel der Karte |
+| `tags` | | Liste von Schlagwörtern (für `--tag`) |
+| `category` | | Kategorie (für `--category`) |
+| `grouping` | | Gruppierung (für `--grouping`) |
+| `prep_time` / `cook_time` / `rest_time` | | Zeit als `H:MM` **oder** Minutenzahl |
+| `servings` | | Portionen (Zahl) |
+| `equipment` | | Liste von Zubehör |
+| `difficulty` | | `easy`/`medium`/`hard` (dt. Synonyme erlaubt) |
+| `source_url` | | Quelle(n); wird auf der Karte nicht angezeigt |
+| `theme_color` | | `#hex`-Grundfarbe; übersteuert die automatische Ermittlung |
+| `image_subject` | | **englische** Bildbeschreibung fürs Aquarell-Badge |
+| `image_prompt` | | vollständiger Bild-Prompt; übersteuert `image_subject` |
+
+### Body
+
+- `## Zutaten` – optional in `### Unterabschnitte` gegliedert, Einträge als `- …`.
+- `## Schritte` (auch „Zubereitung") – nummerierte Liste `1. …`. `**fett**` wird als Fettdruck übernommen.
+- `## Hinweise` (auch „Tipps") – Einträge als `- …`.
+
+---
+
+## Nutzung der CLI
+
+```bash
+node src/cli.ts [verzeichnis] [optionen]
+# oder via npm (Argumente nach --):
+npm start -- --category backen
+```
+
+| Option | Beschreibung |
+|--------|--------------|
+| `[verzeichnis]` | Ordner mit Rezepten (Standard: `./recipes`) |
+| `--out <ordner>` | Zielordner für die PDFs (Standard: `./out`) |
+| `--scale <faktor>` | Zutatenmengen skalieren, z. B. `2` oder `0,5` |
+| `--category <name>` | nur Rezepte dieser Kategorie |
+| `--tag <name>` | nur Rezepte mit diesem Tag |
+| `--grouping <name>` | nur Rezepte dieser Gruppierung |
+| `-h`, `--help` | Hilfe anzeigen |
+
+**Mengen-Skalierung:** `--scale` rechnet nur die **Zutatenliste** um – inklusive
+Unicode-Brüchen (`½ Pck. → 1 Pck.`, `¼ TL → ⅛ TL`). Schritttexte bleiben unverändert.
+
+```bash
+npm start -- --scale 2            # alle Mengen verdoppeln
+npm start -- --category backen    # nur Kategorie "backen"
+```
+
+---
+
+## Bilder generieren
+
+Die Aquarell-Symbole werden mit **Pixazo FLUX.1 [schnell]** erzeugt und in `assets/<slug>.<ext>` gecacht.
+
+1. API-Key hinterlegen (Pixazo-Dashboard → API Key):
+
+   ```bash
+   cp .env.example .env
+   # in .env eintragen:  PIXAZO_API_KEY=dein-key
+   ```
+
+2. Bilder erzeugen:
+
+   ```bash
+   npm run images            # nur fehlende Bilder
+   node scripts/gen-images.ts --force   # alle neu generieren
+   ```
+
+| Option | Beschreibung |
+|--------|--------------|
+| `--force` | vorhandene Bilder neu erzeugen |
+| `--size <px>` | Kantenlänge (Standard: 1024) |
+| `--steps <n>` | Diffusions-Schritte 1–8 (Standard: 4) |
+
+Das Motiv steuerst du über `image_subject` (kurze **englische** Beschreibung) im
+Rezept-Header; ohne Bild zeigt die Karte ein getöntes Platzhalter-Badge mit der Initiale.
+
+---
+
+## Grundfarbe pro Rezept
+
+Die Farbe (Akzente, Flächen, Formen) wird in dieser Reihenfolge bestimmt:
+
+1. `theme_color` im Header (`#hex`),
+2. sonst eine repräsentative Farbe **aus dem generierten Bild**,
+3. sonst ein deterministischer Wert aus dem Titel.
+
+---
+
+## Projektstruktur
+
+```
+recipes/        Rezepte (.md) – rekursiv, beliebige Unterordner
+templates/      card.typ – Typst-Layout der Karte
+src/            CLI & Logik (Parser, Skalierung, Filter, Theming, Render)
+scripts/        gen-images.ts – Bildgenerierung via Pixazo
+assets/         generierte Aquarell-Symbole
+out/            erzeugte PDFs (nicht versioniert)
+```
