@@ -15,29 +15,27 @@ const ENDPOINT = "https://gateway.pixazo.ai/flux-1-schnell/v1/getData";
 const DEFAULT_SIZE = 1024; // quadratisch fürs runde Badge
 const DEFAULT_STEPS = 4; // schnell-Default (max. 8)
 
-// Komposition: Motiv groß und mittig, damit das runde Badge gut gefüllt ist.
-const COMPOSITION =
-  "close-up, centered composition, the subject fills most of the frame";
+// Aquarell-Stil bewusst ZUERST (FLUX gewichtet frühe Tokens stärker) + explizite
+// "kein Foto"-Hinweise, damit das Motiv nicht ins Fotorealistische kippt.
+const STYLE_LEAD =
+  "Hand-painted watercolor illustration, loose visible brush strokes, soft pastel washes, " +
+  "watercolor paper texture, flat 2D storybook style";
 
-// Einheitlicher Aquarell-Stil für ALLE Rezepte → konsistenter Look.
-// Bewusst ohne Anführungszeichen im Subjekt (FLUX rendert zitierten Text sonst wörtlich).
-const STYLE =
-  "minimalist watercolor food illustration, soft loose painterly washes, gentle pastel tones, " +
-  "single subject isolated on a pure white background, " +
-  "no plate, no dish, no cutlery, no background scenery, " +
-  "absolutely no text, no words, no letters, no captions, no labels, no watermark, " +
-  "consistent hand-painted watercolor style";
+const STYLE_TAIL =
+  "single subject, close-up, centered, filling most of the frame, " +
+  "isolated on a plain white background, no plate, no cutlery, no background scenery, " +
+  "no text, no words, no letters, no watermark. " +
+  "Traditional watercolor painting — NOT a photo, not photorealistic, no realistic lighting, no 3D render";
 
 /**
  * Baut den englischen Bild-Prompt. Priorität:
- *   1. image_prompt  → vollständig übernommen (nur Stil angehängt)
+ *   1. image_prompt  → englischer Bild-Prompt (überschreibt image_subject)
  *   2. image_subject → englische Gerichtsbeschreibung (empfohlen)
  *   3. title         → deutscher Titel als Notlösung (oft ungenau)
  */
 function buildPrompt(recipe: Recipe): string {
-  if (recipe.meta.image_prompt) return `${recipe.meta.image_prompt}. ${STYLE}.`;
-  const subject = recipe.meta.image_subject ?? recipe.meta.title;
-  return `A watercolor food icon of ${subject}. ${COMPOSITION}. ${STYLE}.`;
+  const subject = recipe.meta.image_prompt ?? recipe.meta.image_subject ?? recipe.meta.title;
+  return `${STYLE_LEAD} of ${subject}. ${STYLE_TAIL}.`;
 }
 
 /** Bestimmt die Dateiendung anhand der Magic Bytes (Pixazo liefert JPEG). */
