@@ -1,11 +1,22 @@
 #let muted = rgb("#6f6a63")
 
-// Wandelt **fett** aus dem Markdown-Quelltext in echten Fettdruck um.
+// Inline-Markdown → Typst-Content: **fett**/__fett__ und *kursiv*/_kursiv_ (auch verschachtelt).
 #let render-md(s) = {
-  let parts = s.split("**")
-  for (i, part) in parts.enumerate() {
-    if calc.rem(i, 2) == 1 { strong(part) } else { part }
+  let re = regex("\\*\\*(.+?)\\*\\*|__(.+?)__|\\*([^*]+?)\\*|_([^_]+?)_")
+  let out = []
+  let last = 0
+  for m in s.matches(re) {
+    if m.start > last { out += s.slice(last, m.start) }
+    let c = m.captures
+    if c.at(0) != none { out += strong(render-md(c.at(0))) } else if c.at(1) != none {
+      out += strong(render-md(c.at(1)))
+    } else if c.at(2) != none { out += emph(render-md(c.at(2))) } else if c.at(3) != none {
+      out += emph(render-md(c.at(3)))
+    }
+    last = m.end
   }
+  if last < s.len() { out += s.slice(last) }
+  out
 }
 
 #let chip(label, value, bg) = box(
@@ -207,7 +218,7 @@
             v(1pt)
           }
           set list(indent: 0pt, body-indent: 6pt, spacing: 3.5pt, marker: sq-marker(accent))
-          for item in sec.items [- #item]
+          for item in sec.items [- #render-md(item)]
         }
       ]
     },
@@ -251,7 +262,7 @@
           text(size: 9pt, weight: "bold", fill: accent)[Hinweise]
           v(3pt)
           set list(indent: 0pt, body-indent: 6pt, spacing: 3.5pt, marker: sq-marker(accent))
-          for n in data.notes [- #n]
+          for n in data.notes [- #render-md(n)]
         },
       )
     }
