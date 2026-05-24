@@ -1,0 +1,21 @@
+{
+  "name": "recipe-cards",
+  "version": "0.1.0",
+  "description": "Scannt YAML-Rezepte und rendert druckfertige A5-Rezeptkarten via Typst.",
+  "type": "module",
+  "bin": {
+    "recipe-cards": "src/cli.ts"
+  },
+  "scripts": {
+    "start": "node src/cli.ts",
+    "images": "node scripts/gen-images.ts"
+  },
+  "engines": {
+    "node": ">=23.6"
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0",
+    "yaml": "^2.7.0"
+  }
+}
