@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { loadDotEnv } from "../src/env.ts";
@@ -10,6 +10,7 @@ import { slugify } from "../src/render.ts";
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_MODEL = "gemini-3.5-flash";
 
+const IMG_EXT = new Set(["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"]);
 const MIME: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -20,18 +21,19 @@ const MIME: Record<string, string> = {
   heif: "image/heif",
 };
 
-function mimeFor(path: string): string {
-  const ext = path.toLowerCase().split(".").pop() ?? "";
-  return MIME[ext] ?? "image/jpeg";
-}
+const extOf = (p: string) => p.toLowerCase().split(".").pop() ?? "";
+const mimeFor = (p: string) => MIME[extOf(p)] ?? "image/jpeg";
+const isUrl = (s: string) => /^https?:\/\//i.test(s);
+const isImageFile = (s: string) => existsSync(s) && IMG_EXT.has(extOf(s));
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** Detaillierte Anweisung an Gemini, das Rezept ins Template-Format zu gießen. */
 function buildPrompt(): string {
-  return `Du erhältst ein oder mehrere Fotos einer Rezeptseite (z.B. aus einem Kochbuch).
-Lies das Rezept vollständig aus und gib es EXAKT im folgenden Markdown-Format mit YAML-Frontmatter zurück.
+  return `Du erhältst den Inhalt eines Rezepts – als Foto(s), Webseiten-Text oder Fließtext.
+Extrahiere das Rezept und gib es EXAKT im folgenden Markdown-Format mit YAML-Frontmatter zurück.
 Antworte AUSSCHLIESSLICH mit dem Markdown-Inhalt – keine Code-Fences, keine Erklärungen, kein Vor-/Nachtext.
+Bei Webseiten-Text: ignoriere Navigation, Werbung, Kommentare und Beiwerk; extrahiere nur das eigentliche Rezept.
 
 Regeln:
 - Sprache des Rezepts: Deutsch. Übersetze fremdsprachige Inhalte ins Deutsche.
@@ -43,7 +45,7 @@ Regeln:
 - category: ein kurzes Schlagwort, bevorzugt eines von: grundwissen, kochen, backen, salate, saucen, desserts, getränke.
 - tags: 1-4 kurze Schlagwörter.
 - equipment: benötigte Geräte/Gefäße, je Eintrag eine Zeile.
-- source_url: nur wenn im Foto eine URL steht, sonst leer.
+- source_url: die Quell-URL, falls angegeben oder im Inhalt erkennbar, sonst leer.
 - theme_color: leer lassen.
 - image_subject: KURZE ENGLISCHE Beschreibung des fertigen Gerichts für eine Aquarell-Illustration (z.B. a slice of apple pie with lattice crust). OHNE Anführungszeichen.
 - last_modified: ${today()}
@@ -87,24 +89,104 @@ interface Part {
   inline_data?: { mime_type: string; data: string };
 }
 
-async function extractRecipe(
-  images: string[],
-  apiKey: string,
-  model: string,
-): Promise<string> {
-  const parts: Part[] = images.map((p) => ({
-    inline_data: { mime_type: mimeFor(p), data: readFileSync(p).toString("base64") },
-  }));
-  parts.push({ text: buildPrompt() });
+// ---------------- Eingabe-Erkennung ----------------
 
+const ENTITIES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+  auml: "ä", ouml: "ö", uuml: "ü", Auml: "Ä", Ouml: "Ö", Uuml: "Ü", szlig: "ß",
+  eacute: "é", egrave: "è", agrave: "à", deg: "°", frac12: "½", frac14: "¼", frac34: "¾",
+};
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&([a-zA-Z]+);/g, (m, name) => ENTITIES[name] ?? m);
+}
+
+/** Grobe HTML→Text-Umwandlung (Skripte/Styles raus, Tags zu Zeilenumbrüchen). */
+function htmlToText(html: string): string {
+  const s = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<\/(p|div|li|h[1-6]|tr|ul|ol|section|article)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ");
+  return decodeEntities(s)
+    .replace(/[ \t\f\v]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+async function fetchUrlText(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+      accept: "text/html,application/xhtml+xml",
+      "accept-language": "de,en;q=0.8",
+    },
+    redirect: "follow",
+  });
+  if (!res.ok) throw new Error(`Webseite nicht erreichbar: HTTP ${res.status} ${res.statusText}`);
+  const text = htmlToText(await res.text());
+  if (!text) throw new Error("Konnte keinen Text aus der Webseite extrahieren.");
+  return text.slice(0, 60000);
+}
+
+function readStdin(): string {
+  if (process.stdin.isTTY) return "";
+  try {
+    return readFileSync(0, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+type Input =
+  | { mode: "images"; images: string[]; label: string }
+  | { mode: "text"; text: string; sourceUrl?: string; label: string };
+
+/** Erkennt anhand der Argumente, ob Bilder, eine URL oder Fließtext übergeben wurden. */
+async function resolveInput(positionals: string[]): Promise<Input | null> {
+  // stdin (kein Argument oder "-")
+  if (positionals.length === 0 || (positionals.length === 1 && positionals[0] === "-")) {
+    const text = readStdin().trim();
+    return text ? { mode: "text", text, label: "Text (stdin)" } : null;
+  }
+
+  // alle Argumente sind Bilddateien → Foto-Modus (mehrere = mehrseitig)
+  if (positionals.every(isImageFile)) {
+    const images = positionals.map((p) => resolve(p));
+    return { mode: "images", images, label: `${images.length} Foto(s)` };
+  }
+
+  // genau eine URL → Webseite laden
+  if (positionals.length === 1 && isUrl(positionals[0])) {
+    const url = positionals[0];
+    return { mode: "text", text: await fetchUrlText(url), sourceUrl: url, label: `Webseite ${url}` };
+  }
+
+  // genau eine vorhandene (Nicht-Bild-)Datei → als Textdatei lesen
+  if (positionals.length === 1 && existsSync(positionals[0])) {
+    return { mode: "text", text: readFileSync(positionals[0], "utf8"), label: `Textdatei ${positionals[0]}` };
+  }
+
+  // sonst: Argumente als Fließtext zusammenfügen
+  return { mode: "text", text: positionals.join(" "), label: "Fließtext" };
+}
+
+// ---------------- Gemini-Aufruf ----------------
+
+async function callGemini(parts: Part[], apiKey: string, model: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts }],
-      generationConfig: { temperature: 0.2 },
-    }),
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.2 } }),
   });
 
   if (!res.ok) {
@@ -115,18 +197,14 @@ async function extractRecipe(
     candidates?: Array<{ content?: { parts?: Part[] }; finishReason?: string }>;
   };
   const cand = data.candidates?.[0];
-  const text = (cand?.content?.parts ?? [])
-    .map((p) => p.text ?? "")
-    .join("")
-    .trim();
+  const text = (cand?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
   if (!text) {
     const reason = cand?.finishReason ?? "?";
     if (reason === "RECITATION") {
       throw new Error(
         "Gemini hat die Antwort wegen des Recitation-Filters blockiert " +
           "(Ausgabe zu wörtlich an geschütztem Text). Tipp: erneut versuchen oder ein anderes " +
-          "Modell wählen (--model gemini-3-flash-preview / gemini-2.5-pro). " +
-          "Das Skript bittet bereits um Paraphrasierung.",
+          "Modell wählen (--model gemini-3-flash-preview / gemini-2.5-pro).",
       );
     }
     if (reason === "SAFETY") {
@@ -137,6 +215,19 @@ async function extractRecipe(
   return stripFences(text);
 }
 
+/** Baut die Gemini-Parts je nach Eingabeart. */
+function partsFor(input: Input): Part[] {
+  if (input.mode === "images") {
+    const parts: Part[] = input.images.map((p) => ({
+      inline_data: { mime_type: mimeFor(p), data: readFileSync(p).toString("base64") },
+    }));
+    parts.push({ text: buildPrompt() });
+    return parts;
+  }
+  const src = input.sourceUrl ? `Quell-URL (source_url): ${input.sourceUrl}\n\n` : "";
+  return [{ text: `${buildPrompt()}\n\n---\n${src}Rezept-Inhalt:\n\n${input.text}` }];
+}
+
 /** Entfernt evtl. doch vorhandene ```-Code-Fences. */
 function stripFences(s: string): string {
   const t = s.trim();
@@ -145,6 +236,8 @@ function stripFences(s: string): string {
   }
   return t;
 }
+
+// ---------------- Ablage ----------------
 
 /** Findet den passenden Kategorie-Ordner unter recipes/ (z.B. "backen" → "3 backen"); legt sonst einen an. */
 function categoryDir(recipesRoot: string, category: string | undefined): string {
@@ -185,23 +278,33 @@ async function main(): Promise<void> {
     },
   });
 
-  if (values.help || positionals.length === 0) {
-    console.log(`import-photo — Rezept aus Foto(s) generieren (Google Gemini Vision)
+  if (values.help) {
+    console.log(`import — Rezept aus Foto, Webseite oder Text generieren (Google Gemini)
 
 Verwendung:
-  node scripts/import-photo.ts <foto> [weiteres-foto …] [optionen]
+  node scripts/import-photo.ts <eingabe …> [optionen]
+
+Die Eingabeart wird automatisch erkannt:
+  • Bilddatei(en)  → Foto-Modus (mehrere Bilder = mehrseitiges Rezept)
+  • http(s)-URL    → Webseite wird geladen und ausgewertet
+  • Textdatei      → Inhalt wird als Rezepttext gelesen
+  • sonst / "-"    → Fließtext (Argumente oder stdin)
+
+Beispiele:
+  node scripts/import-photo.ts foto.heic
+  node scripts/import-photo.ts https://example.com/mein-rezept
+  node scripts/import-photo.ts "500 g Mehl, 3 Eier … (Rezepttext)"
+  pbpaste | node scripts/import-photo.ts -
 
 Voraussetzung:
   GEMINI_API_KEY in der Umgebung oder in einer .env-Datei im Projekt-Root.
 
 Optionen:
-  --category <name>  Ziel-Kategorieordner erzwingen (sonst aus dem Foto abgeleitet)
+  --category <name>  Ziel-Kategorieordner erzwingen (sonst aus dem Inhalt abgeleitet)
   --stdout           Ergebnis nur ausgeben, keine Datei schreiben
   --force            vorhandene Datei überschreiben statt zu nummerieren
   --model <name>     Gemini-Modell (Standard: ${DEFAULT_MODEL})
-  -h, --help         diese Hilfe
-
-Mehrere Fotos = mehrseitiges Rezept (werden gemeinsam ausgewertet).`);
+  -h, --help         diese Hilfe`);
     return;
   }
 
@@ -212,20 +315,32 @@ Mehrere Fotos = mehrseitiges Rezept (werden gemeinsam ausgewertet).`);
     process.exit(1);
   }
 
-  const images = positionals.map((p) => resolve(p));
-  for (const img of images) {
-    if (!existsSync(img)) {
-      console.error(`Bilddatei nicht gefunden: ${img}`);
+  // Bild-Argumente, die wie Dateien aussehen, aber fehlen → klarer Hinweis.
+  for (const p of positionals) {
+    if (!isUrl(p) && p !== "-" && IMG_EXT.has(extOf(p)) && !existsSync(p)) {
+      console.error(`Datei nicht gefunden: ${p}`);
       process.exit(1);
     }
   }
 
+  let input: Input | null;
+  try {
+    input = await resolveInput(positionals);
+  } catch (err) {
+    console.error(`Eingabe konnte nicht gelesen werden: ${(err as Error).message}`);
+    process.exit(1);
+  }
+  if (!input) {
+    console.error("Keine Eingabe. Übergib eine Bilddatei, eine URL oder Rezepttext (oder via stdin). Siehe --help.");
+    process.exit(1);
+  }
+
   const model = values.model ?? DEFAULT_MODEL;
-  console.error(`Lese ${images.length} Foto(s) mit ${model} …`);
+  console.error(`Lese ${input.label} mit ${model} …`);
 
   let markdown: string;
   try {
-    markdown = await extractRecipe(images, apiKey, model);
+    markdown = await callGemini(partsFor(input), apiKey, model);
   } catch (err) {
     console.error(`Extraktion fehlgeschlagen: ${(err as Error).message}`);
     process.exit(1);

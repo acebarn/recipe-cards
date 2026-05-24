@@ -138,13 +138,22 @@ npm start -- --category backen    # nur Kategorie "backen"
 
 ---
 
-## Rezept aus Foto importieren
+## Rezept importieren (Foto, Webseite oder Text)
 
-Aus einem **Foto** (z. B. einer Kochbuchseite) lässt sich automatisch ein
-Rezept-Entwurf im Template-Format erzeugen. Ein multimodales Model
-(**Google Gemini**, `gemini-3.5-flash`) liest das Bild aus und füllt Frontmatter,
-Zutaten, Schritte und Hinweise – inklusive eines englischen `image_subject` für
-die spätere Bildgenerierung.
+Aus einem **Foto** (z. B. Kochbuchseite), einer **Webseiten-URL** oder reinem
+**Rezepttext** lässt sich automatisch ein Rezept-Entwurf im Template-Format
+erzeugen. Ein multimodales Model (**Google Gemini**, `gemini-3.5-flash`) liest die
+Eingabe aus und füllt Frontmatter, Zutaten, Schritte und Hinweise – inklusive
+eines englischen `image_subject` für die spätere Bildgenerierung.
+
+Die **Eingabeart wird automatisch erkannt**:
+
+| Eingabe | Verhalten |
+|---------|-----------|
+| Bilddatei(en) | Foto-Modus; mehrere Bilder = mehrseitiges Rezept (inkl. **HEIC**) |
+| `http(s)`-URL | Webseite wird geladen, Beiwerk (Navigation/Werbung) ignoriert |
+| Textdatei (`.txt`/`.md`) | Inhalt wird als Rezepttext gelesen |
+| Fließtext / `-` | Text aus den Argumenten oder von stdin |
 
 1. Gemini-API-Key hinterlegen ([aistudio.google.com/apikey](https://aistudio.google.com/apikey)):
 
@@ -153,26 +162,31 @@ die spätere Bildgenerierung.
    # in .env eintragen:  GEMINI_API_KEY=dein-key
    ```
 
-2. Foto importieren:
+2. Importieren – je nach Quelle:
 
    ```bash
-   npm run import -- pfad/zum/foto.jpg
-   # mehrere Fotos = mehrseitiges Rezept:
-   npm run import -- seite1.jpg seite2.jpg
+   npm run import -- foto.heic                       # Foto
+   npm run import -- seite1.jpg seite2.jpg           # mehrseitiges Rezept
+   npm run import -- "https://example.com/rezept"    # Webseite
+   npm run import -- "500 g Mehl, 3 Eier … (Text)"   # Fließtext
+   pbpaste | npm run import -- -                      # Text aus der Zwischenablage
    ```
 
 | Option | Beschreibung |
 |--------|--------------|
-| `--category <name>` | Ziel-Kategorieordner erzwingen (sonst aus dem Foto abgeleitet) |
+| `--category <name>` | Ziel-Kategorieordner erzwingen (sonst aus dem Inhalt abgeleitet) |
 | `--stdout` | Ergebnis nur ausgeben, keine Datei schreiben |
 | `--force` | vorhandene Datei überschreiben statt zu nummerieren |
 | `--model <name>` | Gemini-Modell (Standard: `gemini-3.5-flash`) |
 
 Der Entwurf landet als `.md` im passenden Kategorie-Ordner (z. B. `category: salate`
-→ `recipes/4 salate/`). Unterstützt gängige Foto-Formate inkl. **HEIC**.
+→ `recipes/4 salate/`).
 
 > **Hinweis:** Das Ergebnis ist ein **Entwurf** – bitte vor dem Drucken prüfen und
 > korrigieren. Danach `npm run images` (Aquarell-Bild) und `npm start` (Karte rendern).
+>
+> Manche Webseiten blockieren automatisierte Zugriffe (Fehler 403/404). In dem Fall
+> einfach den Rezepttext kopieren und als Fließtext übergeben.
 
 ---
 
