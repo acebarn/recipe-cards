@@ -118,22 +118,35 @@ export interface RenderResult {
   slug: string;
   pdfPath: string;
   pages: number;
+  /** Angewandte Auto-Fit-Skalierung (1 = unverändert). */
+  scaleFront: number;
+  scaleBack: number;
 }
 
-/** Fragt die finale Seitenzahl über das <pagecount>-Metadatum des Templates ab. */
-function queryPageCount(typPath: string, projectRoot: string): number {
+interface PageInfo {
+  front: number; // Seite, auf der die Vorderseite endet
+  total: number; // Gesamtseitenzahl
+}
+
+/** Liest das <pageinfo>-Metadatum (Vorderseiten-Endseite + Gesamtseiten). */
+function queryPageInfo(typPath: string, projectRoot: string): PageInfo {
   try {
     const out = execFileSync(
       "typst",
-      ["query", "--root", projectRoot, typPath, "<pagecount>", "--field", "value", "--one"],
+      ["query", "--root", projectRoot, typPath, "<pageinfo>", "--field", "value", "--one"],
       { stdio: ["ignore", "pipe", "pipe"] },
     ).toString();
-    const n = Number(JSON.parse(out));
-    return Number.isFinite(n) ? n : 0;
+    const v = JSON.parse(out) as { front?: number; total?: number };
+    const front = Number(v.front);
+    const total = Number(v.total);
+    return { front: Number.isFinite(front) ? front : 1, total: Number.isFinite(total) ? total : 0 };
   } catch {
-    return 0; // unbekannt
+    return { front: 1, total: 0 };
   }
 }
+
+const MIN_SCALE = 0.7; // nicht kleiner skalieren (Lesbarkeit)
+const SCALE_STEP = 0.05;
 
 export function renderCard(
   recipe: Recipe,
@@ -146,25 +159,44 @@ export function renderCard(
 
   const data = buildCardData(recipe, scale, { slug, projectRoot });
   const jsonPath = join(buildDir, `${slug}.json`);
-  writeFileSync(jsonPath, JSON.stringify(data, null, 2), "utf8");
 
   // Typst-Pfade mit führendem "/" werden relativ zu --root aufgelöst.
   const jsonRootPath = "/" + relative(projectRoot, jsonPath).split(sep).join("/");
-
   const typPath = join(buildDir, `${slug}.typ`);
   writeFileSync(
     typPath,
     `#import "/templates/card.typ": card\n#card(json(${JSON.stringify(jsonRootPath)}))\n`,
     "utf8",
   );
-
   const pdfPath = join(outDir, `${slug}.pdf`);
-  execFileSync(
-    "typst",
-    ["compile", "--root", projectRoot, typPath, pdfPath],
-    { stdio: ["ignore", "ignore", "pipe"] },
-  );
 
-  const pages = queryPageCount(typPath, projectRoot);
-  return { slug, pdfPath, pages };
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const compileWith = (sf: number, sb: number): PageInfo => {
+    writeFileSync(jsonPath, JSON.stringify({ ...data, scale_front: sf, scale_back: sb }, null, 2), "utf8");
+    execFileSync("typst", ["compile", "--root", projectRoot, typPath, pdfPath], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    return queryPageInfo(typPath, projectRoot);
+  };
+
+  // Auto-Fit: Schrift pro Seite schrittweise verkleinern, bis Vorder- und
+  // Rückseite je genau eine Seite belegen (bis zur Mindestgröße).
+  let sf = 1;
+  let sb = 1;
+  let info = compileWith(sf, sb);
+  for (let guard = 0; guard < 16; guard++) {
+    if (info.front > 1 && sf > MIN_SCALE) {
+      sf = Math.max(MIN_SCALE, round2(sf - SCALE_STEP));
+      info = compileWith(sf, sb);
+      continue;
+    }
+    if (info.total - info.front > 1 && sb > MIN_SCALE) {
+      sb = Math.max(MIN_SCALE, round2(sb - SCALE_STEP));
+      info = compileWith(sf, sb);
+      continue;
+    }
+    break;
+  }
+
+  return { slug, pdfPath, pages: info.total, scaleFront: sf, scaleBack: sb };
 }

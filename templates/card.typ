@@ -1,5 +1,8 @@
 #let muted = rgb("#6f6a63")
 
+// Merkt sich die Seitenzahl, auf der die Vorderseite endet (für die Auto-Fit-Prüfung).
+#let _front-page = state("front-page", 1)
+
 // Inline-Markdown → Typst-Content: **fett**/__fett__ und *kursiv*/_kursiv_ (auch verschachtelt).
 #let render-md(s) = {
   let re = regex("\\*\\*(.+?)\\*\\*|__(.+?)__|\\*([^*]+?)\\*|_([^_]+?)_")
@@ -122,6 +125,9 @@
 #let card(data) = {
   let theme = data.theme
   let accent = rgb(theme.accent)
+  // Auto-Fit-Skalierung (von render.ts iterativ gesetzt, Standard 1.0).
+  let sf = data.at("scale_front", default: 1.0)
+  let sb = data.at("scale_back", default: 1.0)
 
   set page(
     paper: "a5",
@@ -210,11 +216,12 @@
       set text(fill: rgb(theme.panelText))
       text(size: 12pt, weight: "bold", fill: rgb(theme.panelHeading))[Zutaten]
       v(4pt)
+      set text(size: 9pt * sf) // Auto-Fit: Zutaten-Schrift
       columns(2, gutter: 18pt)[
         #for (i, sec) in data.ingredients.enumerate() {
           if sec.name != none {
             if i > 0 { v(3pt) }
-            text(size: 9.5pt, weight: "bold", fill: rgb(theme.panelHeading))[#sec.name]
+            text(size: 9.5pt * sf, weight: "bold", fill: rgb(theme.panelHeading))[#sec.name]
             v(1pt)
           }
           set list(indent: 0pt, body-indent: 6pt, spacing: 3.5pt, marker: sq-marker(accent))
@@ -223,6 +230,9 @@
       ]
     },
   )
+
+  // Seite, auf der die Vorderseite endet, festhalten (für Auto-Fit).
+  context _front-page.update(counter(page).get().first())
 
   // ============================================================
   //  RÜCKSEITE — Zubereitung
@@ -245,6 +255,7 @@
   bauhaus-divider(accent)
   v(6pt)
 
+  set text(size: 9pt * sb) // Auto-Fit: Zubereitungs-/Hinweis-Schrift
   columns(2, gutter: 20pt)[
     #{
       set enum(indent: 0pt, body-indent: 10pt, spacing: 6pt, numbering: n => num-circle(n, accent))
@@ -268,6 +279,6 @@
     }
   ]
 
-  // Finale Seitenzahl als abfragbares Metadatum (für die Max-2-Seiten-Prüfung der CLI).
-  context [#metadata(counter(page).final().first()) <pagecount>]
+  // Seiteninfo als abfragbares Metadatum: front = Endseite der Vorderseite, total = Gesamtseiten.
+  context [#metadata((front: _front-page.get(), total: counter(page).final().first())) <pageinfo>]
 }

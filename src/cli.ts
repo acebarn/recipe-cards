@@ -94,13 +94,19 @@ function main(): void {
     }
 
     try {
-      const { pdfPath, pages } = renderCard(recipe, { projectRoot: PROJECT_ROOT, outDir, scale });
+      const { pdfPath, pages, scaleFront, scaleBack } = renderCard(recipe, {
+        projectRoot: PROJECT_ROOT,
+        outDir,
+        scale,
+      });
       const pageInfo = pages > 0 ? ` (${pages} ${pages === 1 ? "Seite" : "Seiten"})` : "";
+      const minScale = Math.min(scaleFront, scaleBack);
+      const fitNote = minScale < 1 ? ` · Schrift auf ${Math.round(minScale * 100)}% verkleinert` : "";
       if (pages > 2) {
         console.log(`⚠ ${recipe.meta.title}${pageInfo} → ${pdfPath}  [über 2 Seiten – bitte kürzen]`);
         overlong++;
       } else {
-        console.log(`✓ ${recipe.meta.title}${pageInfo} → ${pdfPath}`);
+        console.log(`✓ ${recipe.meta.title}${pageInfo}${fitNote} → ${pdfPath}`);
       }
       rendered++;
     } catch (err) {
