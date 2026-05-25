@@ -151,7 +151,7 @@
     },
   )
   set text(
-    font: ("Futura", "Helvetica Neue", "Arial", "Apple Color Emoji"),
+    font: ("Jost*", "Futura", "Helvetica Neue", "Arial", "Apple Color Emoji"),
     size: 9pt,
     lang: "de",
     hyphenate: true,

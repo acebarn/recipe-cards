@@ -170,9 +170,15 @@ async function resolveInput(positionals: string[]): Promise<Input | null> {
     return { mode: "text", text: await fetchUrlText(url), sourceUrl: url, label: `Webseite ${url}` };
   }
 
-  // genau eine vorhandene (Nicht-Bild-)Datei → als Textdatei lesen
+  // genau eine vorhandene (Nicht-Bild-)Datei → Textdatei lesen.
+  // Enthält sie nur eine URL, wird die Webseite geladen (Inbox-Fall).
   if (positionals.length === 1 && existsSync(positionals[0])) {
-    return { mode: "text", text: readFileSync(positionals[0], "utf8"), label: `Textdatei ${positionals[0]}` };
+    const raw = readFileSync(positionals[0], "utf8");
+    const trimmed = raw.trim();
+    if (isUrl(trimmed) && !/\s/.test(trimmed)) {
+      return { mode: "text", text: await fetchUrlText(trimmed), sourceUrl: trimmed, label: `URL aus Datei (${trimmed})` };
+    }
+    return { mode: "text", text: raw, label: `Textdatei ${positionals[0]}` };
   }
 
   // sonst: Argumente als Fließtext zusammenfügen

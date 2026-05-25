@@ -133,7 +133,18 @@ function queryPageInfo(typPath: string, projectRoot: string): PageInfo {
   try {
     const out = execFileSync(
       "typst",
-      ["query", "--root", projectRoot, typPath, "<pageinfo>", "--field", "value", "--one"],
+      [
+        "query",
+        "--root",
+        projectRoot,
+        "--font-path",
+        join(projectRoot, "fonts"),
+        typPath,
+        "<pageinfo>",
+        "--field",
+        "value",
+        "--one",
+      ],
       { stdio: ["ignore", "pipe", "pipe"] },
     ).toString();
     const v = JSON.parse(out) as { front?: number; total?: number };
@@ -173,9 +184,11 @@ export function renderCard(
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const compileWith = (sf: number, sb: number): PageInfo => {
     writeFileSync(jsonPath, JSON.stringify({ ...data, scale_front: sf, scale_back: sb }, null, 2), "utf8");
-    execFileSync("typst", ["compile", "--root", projectRoot, typPath, pdfPath], {
-      stdio: ["ignore", "ignore", "pipe"],
-    });
+    execFileSync(
+      "typst",
+      ["compile", "--root", projectRoot, "--font-path", join(projectRoot, "fonts"), typPath, pdfPath],
+      { stdio: ["ignore", "ignore", "pipe"] },
+    );
     return queryPageInfo(typPath, projectRoot);
   };
 
