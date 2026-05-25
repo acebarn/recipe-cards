@@ -232,10 +232,70 @@ Die Farbe (Akzente, Flächen, Formen) wird in dieser Reihenfolge bestimmt:
 ## Projektstruktur
 
 ```
-recipes/        Rezepte (.md) – rekursiv, beliebige Unterordner
-templates/      card.typ – Typst-Layout der Karte
-src/            CLI & Logik (Parser, Skalierung, Filter, Theming, Render)
-scripts/        gen-images.ts – Bildgenerierung via Pixazo
-assets/         generierte Aquarell-Symbole
-out/            erzeugte PDFs (nicht versioniert)
+recipes/             Rezepte (.md) – rekursiv, beliebige Unterordner
+templates/           card.typ – Typst-Layout der Karte
+fonts/               gebündelte Schrift (Jost, OFL) für reproduzierbares Rendering
+src/                 CLI & Logik (Parser, Skalierung, Filter, Theming, Render)
+scripts/             add.ts (Orchestrator), import-photo.ts, gen-images.ts
+assets/              generierte Aquarell-Symbole
+out/                 erzeugte PDFs (nicht versioniert)
+.github/workflows/   process-inbox.yml – Cloud-Automatisierung (Drive → PDF)
 ```
+
+## Rezept in einem Schritt anlegen
+
+```bash
+npm run add -- foto.heic                    # Import → Bild → PDF in einem Lauf
+npm run add -- "https://example.com/rezept"
+npm run add -- "Rezepttext …"
+```
+
+---
+
+## Mobiler Workflow / Cloud-Automatisierung (Google Drive + GitHub Actions)
+
+Idee: Auf dem Handy ein Foto/eine URL/Text in einen Drive-Ordner teilen → eine
+GitHub Action holt die Eingabe, lässt die Pipeline laufen und legt **Rezept + PDF**
+zurück in Google Drive. Das Rendering ist dank gebündelter Schrift (`fonts/`,
+`--font-path`) in der Cloud identisch zum lokalen Ergebnis.
+
+**Drive-Ordnerstruktur** (ein Stammordner, z. B. `recipe-cards`):
+
+```
+recipe-cards/
+  _Inbox/       ← hier teilst du Foto / URL / Text vom Handy hinein
+  Bibliothek/   Rezept-Quellen (.md)
+  assets/       Aquarell-Bilder
+  PDFs/         fertige Karten (drucken/ansehen)
+  _Done/        verarbeitete Inbox-Dateien (Archiv)
+```
+
+**Einmalige Einrichtung:**
+
+1. **Google-Service-Account** anlegen (Google Cloud Console → IAM → Service Accounts),
+   JSON-Key erzeugen, Drive-API aktivieren. Den Stammordner `recipe-cards` in Drive
+   mit der Service-Account-E-Mail **freigeben** (Bearbeiter).
+2. **rclone-Remote** „drive" mit diesem Service-Account konfigurieren
+   (`rclone config` → Typ `drive`, `service_account_file`). Den Inhalt von
+   `~/.config/rclone/rclone.conf` als GitHub-Secret hinterlegen.
+3. **GitHub-Secrets** setzen (Repo → Settings → Secrets and variables → Actions):
+   `PIXAZO_API_KEY`, `GEMINI_API_KEY`, `RCLONE_CONFIG`.
+4. **Migration:** aktuelle `recipes/` und `assets/` einmalig nach Drive laden, z. B.
+   ```bash
+   rclone copy ./recipes recipe-cards-drive:recipe-cards/Bibliothek
+   rclone copy ./assets  recipe-cards-drive:recipe-cards/assets
+   ```
+   Danach im Repo entkoppeln (Quellen leben künftig in Drive):
+   `git rm -r --cached recipes assets` und beide in `.gitignore` aufnehmen.
+
+**Auslösen vom Handy (drei Möglichkeiten):**
+
+- **GitHub-App:** Actions → „Rezept-Inbox verarbeiten" → *Run workflow*.
+- **iOS-Kurzbefehl:** Teilen-Menü → Datei in den Drive-`_Inbox`-Ordner speichern →
+  anschließend „Inhalte von URL abrufen" POST an
+  `https://api.github.com/repos/acebarn/recipe-cards/actions/workflows/process-inbox.yml/dispatches`
+  mit Header `Authorization: Bearer <PAT>` und Body `{"ref":"main"}`.
+- **Zeitgesteuert:** `schedule`-Cron im Workflow einkommentieren (läuft automatisch).
+
+Die Action verarbeitet alle Dateien in `_Inbox`, schreibt Ergebnisse nach
+`Bibliothek`/`assets`/`PDFs` und verschiebt die Eingaben nach `_Done`.

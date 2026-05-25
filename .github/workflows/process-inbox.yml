@@ -1,0 +1,88 @@
+name: Rezept-Inbox verarbeiten
+
+# Auslösen: manuell (GitHub-App „Run workflow" oder per API/iOS-Kurzbefehl),
+# optional zeitgesteuert (Cron unten einkommentieren).
+on:
+  workflow_dispatch: {}
+  # schedule:
+  #   - cron: "*/30 * * * *"   # alle 30 Min (UTC) – verbraucht CI-Minuten, auch wenn Inbox leer
+
+permissions:
+  contents: read
+
+env:
+  TYPST_VERSION: "v0.14.2"
+  # rclone-Remote "drive" + Stammordner in deinem Google Drive:
+  DRIVE_ROOT: "drive:recipe-cards"
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (nur Code)
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Typst installieren
+        run: |
+          curl -fsSL "https://github.com/typst/typst/releases/download/${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" -o typst.tar.xz
+          tar -xJf typst.tar.xz
+          sudo mv typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst
+          typst --version
+
+      - name: rclone installieren & konfigurieren
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          mkdir -p ~/.config/rclone
+          printf '%s' "$RCLONE_CONFIG" > ~/.config/rclone/rclone.conf
+        env:
+          RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
+
+      - name: Bibliothek + Inbox aus Drive holen
+        run: |
+          mkdir -p inbox recipes assets out
+          rclone copy "$DRIVE_ROOT/Bibliothek" ./recipes
+          rclone copy "$DRIVE_ROOT/assets" ./assets
+          rclone copy "$DRIVE_ROOT/_Inbox" ./inbox
+          echo "Inbox:"; ls -la inbox || true
+
+      - name: Inbox verarbeiten (Import → Rezept-Entwurf)
+        run: |
+          shopt -s nullglob
+          count=0
+          for f in inbox/*; do
+            [ -f "$f" ] || continue
+            echo "::group::Import $f"
+            node scripts/import-photo.ts "$f" || echo "Fehler bei $f"
+            echo "::endgroup::"
+            count=$((count+1))
+          done
+          echo "Verarbeitete Inbox-Dateien: $count"
+          echo "INBOX_COUNT=$count" >> "$GITHUB_ENV"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Aquarell-Bilder erzeugen
+        if: env.INBOX_COUNT != '0'
+        run: node scripts/gen-images.ts
+        env:
+          PIXAZO_API_KEY: ${{ secrets.PIXAZO_API_KEY }}
+
+      - name: PDFs rendern
+        if: env.INBOX_COUNT != '0'
+        run: node src/cli.ts
+
+      - name: Ergebnisse nach Drive schreiben & Inbox archivieren
+        if: env.INBOX_COUNT != '0'
+        run: |
+          rclone copy ./recipes "$DRIVE_ROOT/Bibliothek"
+          rclone copy ./assets  "$DRIVE_ROOT/assets"
+          rclone copy ./out     "$DRIVE_ROOT/PDFs" --include "*.pdf"
+          rclone move "$DRIVE_ROOT/_Inbox" "$DRIVE_ROOT/_Done"
