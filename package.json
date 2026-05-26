@@ -10,7 +10,8 @@
     "start": "node src/cli.ts",
     "images": "node scripts/gen-images.ts",
     "import": "node scripts/import-photo.ts",
-    "add": "node scripts/add.ts"
+    "add": "node scripts/add.ts",
+    "bot": "node scripts/bot.ts"
   },
   "engines": {
     "node": ">=23.6"

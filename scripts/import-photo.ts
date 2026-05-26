@@ -131,7 +131,13 @@ async function fetchUrlText(url: string): Promise<string> {
     },
     redirect: "follow",
   });
-  if (!res.ok) throw new Error(`Webseite nicht erreichbar: HTTP ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    const blocked = [401, 402, 403, 404, 429, 451].includes(res.status);
+    const hint = blocked
+      ? " Die Seite blockt vermutlich automatisierte Zugriffe – kopiere den Rezepttext und sende ihn direkt als Text."
+      : "";
+    throw new Error(`Webseite nicht erreichbar: HTTP ${res.status} ${res.statusText}.${hint}`);
+  }
   const text = htmlToText(await res.text());
   if (!text) throw new Error("Konnte keinen Text aus der Webseite extrahieren.");
   return text.slice(0, 60000);

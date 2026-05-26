@@ -1,0 +1,22 @@
+name: Rezeptkarten-Bot
+slug: recipe_bot
+version: "0.1.0"
+description: >-
+  Telegram-Bot, der aus Foto, Link oder Text eine druckfertige
+  A5-Rezeptkarte (PDF) erzeugt und in den Chat zurückschickt.
+url: https://github.com/acebarn/recipe-cards
+arch:
+  - aarch64
+init: false
+boot: auto
+# Persistenter Speicher /data steht Add-ons automatisch zur Verfügung.
+options:
+  telegram_bot_token: ""
+  allowed_telegram_users: ""
+  pixazo_api_key: ""
+  gemini_api_key: ""
+schema:
+  telegram_bot_token: str
+  allowed_telegram_users: str?
+  pixazo_api_key: str
+  gemini_api_key: str

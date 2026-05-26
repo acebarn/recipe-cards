@@ -299,3 +299,32 @@ recipe-cards/
 
 Die Action verarbeitet alle Dateien in `_Inbox`, schreibt Ergebnisse nach
 `Bibliothek`/`assets`/`PDFs` und verschiebt die Eingaben nach `_Done`.
+
+---
+
+## Telegram-Bot (komfortabelster Weg)
+
+Ein Telegram-Bot nimmt **Foto, Link oder Text** direkt im Chat entgegen, fährt die
+Pipeline und schickt die **fertige PDF zurück in den Chat**. Befehle wie `/start`
+liefern eine Kurzhilfe.
+
+**Lokal testen** (z. B. auf dem Mac):
+
+```bash
+# .env: TELEGRAM_BOT_TOKEN (von @BotFather) und optional
+#       ALLOWED_TELEGRAM_USERS=<id1>,<id2>   (eigene IDs via @userinfobot)
+npm run bot
+```
+
+**Dauerbetrieb als Home-Assistant-Add-on** (empfohlen, läuft 24/7 auf dem Pi):
+
+1. Home Assistant → **Einstellungen → Add-ons → Add-on-Store → ⋮ → Repositories**:
+   `https://github.com/acebarn/recipe-cards` hinzufügen.
+2. Add-on **„Rezeptkarten-Bot"** installieren.
+3. Im Tab **Konfiguration** eintragen: `telegram_bot_token`, `allowed_telegram_users`
+   (komma-getrennt), `pixazo_api_key`, `gemini_api_key`.
+4. **Starten.** Danach dem Bot in Telegram ein Foto/Link/Text senden → PDF kommt zurück.
+
+Technik: Long-Polling (nur ausgehende Verbindungen, kein offener Port), Typst-aarch64
++ gebündelte Schrift im Container, Rezepte/Bilder/PDFs persistent unter `/data`,
+Auto-Neustart bei Aussetzern. Add-on-Dateien: [`recipe-bot/`](recipe-bot/).
