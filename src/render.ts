@@ -5,9 +5,9 @@ import type { Recipe } from "./model.ts";
 import { scaleIngredient } from "./scale.ts";
 import { themeFor } from "./theme.ts";
 
-export function slugify(recipe: Recipe): string {
-  const base = recipe.meta.title || basename(recipe.sourceFile, ".md");
-  return base
+/** Wandelt einen Titel in einen dateisystem-/URL-sicheren Slug (Basis für PDF-/Bild-Namen). */
+export function slugifyTitle(title: string): string {
+  return title
     .toLowerCase()
     .replace(/ä/g, "ae")
     .replace(/ö/g, "oe")
@@ -15,6 +15,10 @@ export function slugify(recipe: Recipe): string {
     .replace(/ß/g, "ss")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+export function slugify(recipe: Recipe): string {
+  return slugifyTitle(recipe.meta.title || basename(recipe.sourceFile, ".md"));
 }
 
 const DIFFICULTY_LABEL: Record<string, string> = {

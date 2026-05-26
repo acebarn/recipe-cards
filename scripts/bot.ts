@@ -11,6 +11,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadDotEnv } from "../src/env.ts";
+import { slugifyTitle } from "../src/render.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 loadDotEnv(ROOT);
@@ -88,14 +89,19 @@ function node(script: string, args: string[] = []): { out: string } {
 
 /** Import → Bild → PDF; liefert Titel und Pfad der erzeugten PDF. */
 function runPipeline(inputArg: string): { title: string; pdfPath: string } {
-  const imp = node("scripts/import-photo.ts", [inputArg]).out;
-  const pathMatch = imp.match(/→\s*(.+\.md)\s*$/m);
-  if (!pathMatch) throw new Error("Konnte das erzeugte Rezept nicht ermitteln.\n" + imp);
-  const slug = basename(pathMatch[1].trim(), ".md");
+  // --force: erneutes Senden überschreibt dasselbe Rezept (kein "-2"-Duplikat).
+  const imp = node("scripts/import-photo.ts", [inputArg, "--force"]).out;
   const titleMatch = imp.match(/Entwurf erstellt:\s*(.+)/);
+  const pathMatch = imp.match(/→\s*(.+\.md)\s*$/m);
+  if (!titleMatch && !pathMatch) {
+    throw new Error("Konnte das erzeugte Rezept nicht ermitteln.\n" + imp);
+  }
+  const title = titleMatch ? titleMatch[1].trim() : basename(pathMatch![1].trim(), ".md");
+  // PDF-Name = Titel-Slug (identisch zur Benennung im Renderer).
+  const slug = slugifyTitle(title);
   node("scripts/gen-images.ts");
   node("src/cli.ts");
-  return { title: titleMatch ? titleMatch[1].trim() : slug, pdfPath: join(ROOT, "out", `${slug}.pdf`) };
+  return { title, pdfPath: join(ROOT, "out", `${slug}.pdf`) };
 }
 
 async function handle(msg: any): Promise<void> {
