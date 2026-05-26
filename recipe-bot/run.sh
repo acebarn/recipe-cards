@@ -9,13 +9,17 @@ export ALLOWED_TELEGRAM_USERS="$(opt allowed_telegram_users)"
 export PIXAZO_API_KEY="$(opt pixazo_api_key)"
 export GEMINI_API_KEY="$(opt gemini_api_key)"
 
-# Rezepte/Bilder/PDFs persistent in /data ablegen (per Symlink in den App-Baum).
-# Geklonte Ordner zuerst entfernen, sonst landet der Symlink darin.
-mkdir -p /data/recipes /data/assets /data/out
-rm -rf /app/recipes /app/assets /app/out
+# Rezept-Quellen persistent in /data: werden von Node gelesen, nicht von Typst,
+# daher ist ein Symlink unkritisch (überlebt auch Add-on-Updates).
+mkdir -p /data/recipes
+rm -rf /app/recipes
 ln -sfn /data/recipes /app/recipes
-ln -sfn /data/assets  /app/assets
-ln -sfn /data/out     /app/out
+
+# Bilder und PDFs MÜSSEN für Typst innerhalb des Projekt-Roots (/app) liegen –
+# ein Symlink nach /data würde von Typst aufgelöst und läge außerhalb von --root
+# ("source file must be contained in project root"). Daher reale Ordner in /app.
+# (Bilder überleben Neustarts; nach einem Add-on-Update werden fehlende neu erzeugt.)
+mkdir -p /app/assets /app/out
 
 # Bot starten; bei unerwartetem Ende automatisch neu starten (Netzwerk-Aussetzer etc.).
 while true; do
