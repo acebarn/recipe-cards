@@ -15,6 +15,10 @@ RUN curl -fsSL "https://github.com/typst/typst/releases/download/${TYPST_VERSION
  && rm -rf /tmp/typst* \
  && typst --version
 
+# Cache-Buster: Inhalt ändert sich bei jedem neuen Commit auf den Branch →
+# erzwingt eine frische Ausführung des nachfolgenden git-clone (statt Docker-Cache).
+ADD "https://api.github.com/repos/acebarn/recipe-cards/commits/${APP_REF}" /tmp/app-commit.json
+
 # App-Code klonen und Abhängigkeiten installieren.
 RUN git clone --depth 1 --branch "${APP_REF}" https://github.com/acebarn/recipe-cards.git /app
 WORKDIR /app
