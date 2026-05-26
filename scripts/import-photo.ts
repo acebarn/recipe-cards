@@ -120,7 +120,47 @@ function htmlToText(html: string): string {
     .trim();
 }
 
+/** SSRF-Schutz: blockt localhost, interne Hostnamen und private/Link-Local-IPs. */
+function isPrivateHost(host: string): boolean {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, "");
+  if (
+    h === "localhost" ||
+    h.endsWith(".local") ||
+    h.endsWith(".localhost") ||
+    ["supervisor", "homeassistant", "hassio", "host"].includes(h)
+  ) {
+    return true;
+  }
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true; // Link-Local inkl. Cloud-Metadaten
+  }
+  if (h === "::1" || h.startsWith("fe80") || h.startsWith("fc") || h.startsWith("fd")) return true;
+  return false;
+}
+
+function assertPublicUrl(raw: string): void {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error(`Ungültige URL: ${raw}`);
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    throw new Error(`Nicht unterstütztes Protokoll: ${u.protocol}`);
+  }
+  if (isPrivateHost(u.hostname)) {
+    throw new Error("Interne/private Adressen sind nicht erlaubt.");
+  }
+}
+
 async function fetchUrlText(url: string): Promise<string> {
+  assertPublicUrl(url);
   const res = await fetch(url, {
     headers: {
       "user-agent":
@@ -131,6 +171,12 @@ async function fetchUrlText(url: string): Promise<string> {
     },
     redirect: "follow",
   });
+  // Auch nach Redirects darf das Ziel nicht intern sein.
+  try {
+    if (res.url) assertPublicUrl(res.url);
+  } catch (e) {
+    throw new Error("Weiterleitung auf eine interne Adresse wurde blockiert.");
+  }
   if (!res.ok) {
     const blocked = [401, 402, 403, 404, 429, 451].includes(res.status);
     const hint = blocked
@@ -271,6 +317,16 @@ function stripFences(s: string): string {
 
 // ---------------- Ablage ----------------
 
+/** Sanitisiert einen (ggf. modellgenerierten) Ordnernamen → kein Pfad-Traversal. */
+function safeFolder(name: string): string {
+  const cleaned = name
+    .replace(/[^\p{L}\p{N} _-]+/gu, "") // nur Buchstaben/Ziffern/Leerzeichen/_/-
+    .replace(/^[.\s]+|[.\s]+$/g, "")
+    .slice(0, 60)
+    .trim();
+  return cleaned || "_import";
+}
+
 /** Findet den passenden Kategorie-Ordner unter recipes/ (z.B. "backen" → "3 backen"); legt sonst einen an. */
 function categoryDir(recipesRoot: string, category: string | undefined): string {
   const dirs = readdirSync(recipesRoot, { withFileTypes: true })
@@ -282,7 +338,7 @@ function categoryDir(recipesRoot: string, category: string | undefined): string 
       const n = d.toLowerCase();
       return n === cat || n.endsWith(" " + cat) || n.split(" ").includes(cat);
     });
-    return join(recipesRoot, match ?? category);
+    return join(recipesRoot, match ?? safeFolder(category));
   }
   return join(recipesRoot, "_import");
 }
@@ -402,7 +458,7 @@ Optionen:
   }
 
   const dir = values.category
-    ? join(recipesRoot, values.category)
+    ? join(recipesRoot, safeFolder(values.category))
     : categoryDir(recipesRoot, category);
   mkdirSync(dir, { recursive: true });
 

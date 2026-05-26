@@ -4,7 +4,7 @@
 //
 // Konfiguration (Umgebung oder .env):
 //   TELEGRAM_BOT_TOKEN       Pflicht – Token von @BotFather
-//   ALLOWED_TELEGRAM_USERS   optional – Komma-Liste erlaubter User-IDs (leer = alle)
+//   ALLOWED_TELEGRAM_USERS   Komma-Liste erlaubter User-IDs (fail-closed: leer = niemand)
 //   PIXAZO_API_KEY / GEMINI_API_KEY   für Bild- bzw. Importschritt
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -108,8 +108,10 @@ async function handle(msg: any): Promise<void> {
   if (!msg) return;
   const chatId = msg.chat.id as number;
   const userId = String(msg.from?.id ?? "");
-  if (ALLOWED.length > 0 && !ALLOWED.includes(userId)) {
+  // Fail-closed: ohne konfigurierte Whitelist wird niemand zugelassen.
+  if (!ALLOWED.includes(userId)) {
     await sendMessage(chatId, "⛔ Nicht autorisiert.");
+    console.error(`Abgelehnt: nicht autorisierte User-ID ${userId || "(unbekannt)"}`);
     return;
   }
 
@@ -153,6 +155,9 @@ async function main(): Promise<void> {
     console.error(`Bot @${me.username} läuft (Long-Polling)${ALLOWED.length ? `, erlaubte User: ${ALLOWED.join(", ")}` : ""} …`);
   } catch (e) {
     console.error("getMe fehlgeschlagen, fahre trotzdem fort:", (e as Error).message);
+  }
+  if (ALLOWED.length === 0) {
+    console.error("WARNUNG: keine ALLOWED_TELEGRAM_USERS gesetzt – es werden ALLE Nachrichten abgelehnt (fail-closed).");
   }
   let offset = 0;
   for (;;) {
