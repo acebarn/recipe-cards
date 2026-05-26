@@ -10,10 +10,12 @@ export PIXAZO_API_KEY="$(opt pixazo_api_key)"
 export GEMINI_API_KEY="$(opt gemini_api_key)"
 
 # Rezepte/Bilder/PDFs persistent in /data ablegen (per Symlink in den App-Baum).
+# Geklonte Ordner zuerst entfernen, sonst landet der Symlink darin.
 mkdir -p /data/recipes /data/assets /data/out
+rm -rf /app/recipes /app/assets /app/out
 ln -sfn /data/recipes /app/recipes
 ln -sfn /data/assets  /app/assets
-ln -sfn /data/out      /app/out
+ln -sfn /data/out     /app/out
 
 # Bot starten; bei unerwartetem Ende automatisch neu starten (Netzwerk-Aussetzer etc.).
 while true; do
