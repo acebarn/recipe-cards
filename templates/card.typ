@@ -217,7 +217,9 @@
       text(size: 12pt, weight: "bold", fill: rgb(theme.panelHeading))[Zutaten]
       v(4pt)
       set text(size: 9pt * sf) // Auto-Fit: Zutaten-Schrift
-      columns(2, gutter: 18pt)[
+      // Spalten inhaltsabhängig: kurze Listen einspaltig (weniger Umbrüche), lange zweispaltig.
+      let ing-count = data.ingredients.map(s => s.items.len()).sum(default: 0)
+      columns(if ing-count >= 10 { 2 } else { 1 }, gutter: 18pt)[
         #for (i, sec) in data.ingredients.enumerate() {
           if sec.name != none {
             if i > 0 { v(3pt) }
@@ -256,7 +258,8 @@
   v(6pt)
 
   set text(size: 9pt * sb) // Auto-Fit: Zubereitungs-/Hinweis-Schrift
-  columns(2, gutter: 20pt)[
+  // Spalten inhaltsabhängig: wenige Schritte einspaltig, viele zweispaltig.
+  columns(if data.steps.len() >= 6 { 2 } else { 1 }, gutter: 20pt)[
     #{
       set enum(indent: 0pt, body-indent: 10pt, spacing: 6pt, numbering: n => num-circle(n, accent))
       for step in data.steps [+ #render-md(step.text)]
