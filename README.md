@@ -279,8 +279,16 @@ npm run bot
 ### Bibliothek in Google Drive
 
 Nach Ansicht des PDFs bietet der Bot **„Ja, speichern" / „Nein"** an. Bei „Ja" werden
-**Rezept (.md), PDF und Bild** in eine **kategorisierte Ordnerstruktur** in Google Drive
-gelegt: `Rezepte/<Kategorie>/`. Verschoben wird per **rclone**.
+**PDF und Rezept (.md)** – getrennt nach Typ und Kategorie – in Google Drive abgelegt
+(per **rclone**):
+
+```
+Rezepte/
+  pdf/<Kategorie>/<rezept>.pdf
+  md/<Kategorie>/<rezept>.md
+```
+
+(Das Aquarell-JPG wird nicht in Drive gespeichert.)
 
 Einrichtung (einmalig):
 

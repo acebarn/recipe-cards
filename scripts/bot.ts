@@ -139,14 +139,16 @@ function driveConfigured(): boolean {
   }
 }
 
-/** Lädt Rezept-.md, PDF und Bild in den kategorisierten Drive-Ordner. */
+/** Lädt PDF und Rezept-.md getrennt nach <Folder>/pdf/<Kategorie> bzw. /md/<Kategorie>. */
 function uploadToDrive(r: Recipe): void {
-  const sub = [DRIVE_FOLDER, r.category].filter(Boolean).join("/");
-  const dest = `${DRIVE_REMOTE}:${sub}`;
-  const files = [r.mdPath, r.pdfPath, r.imagePath].filter((f): f is string => !!f && existsSync(f));
-  if (files.length === 0) throw new Error("Keine Dateien zum Hochladen gefunden.");
-  for (const f of files) {
-    const res = spawnSync("rclone", ["copy", f, dest], { encoding: "utf8" });
+  // [lokale Datei, Typ-Unterordner] – das JPG wird bewusst nicht abgelegt.
+  const uploads: Array<[string, string]> = [];
+  if (existsSync(r.pdfPath)) uploads.push([r.pdfPath, "pdf"]);
+  if (existsSync(r.mdPath)) uploads.push([r.mdPath, "md"]);
+  if (uploads.length === 0) throw new Error("Keine Dateien zum Hochladen gefunden.");
+  for (const [file, type] of uploads) {
+    const sub = [DRIVE_FOLDER, type, r.category].filter(Boolean).join("/");
+    const res = spawnSync("rclone", ["copy", file, `${DRIVE_REMOTE}:${sub}`], { encoding: "utf8" });
     if (res.status !== 0) throw new Error((res.stderr || "rclone-Fehler").trim().slice(0, 300));
   }
 }
@@ -270,7 +272,7 @@ async function handleCallback(cq: any): Promise<void> {
   if (action === "save") {
     try {
       uploadToDrive(recipe);
-      await editText(chatId, messageId, `📚 In Bibliothek gespeichert: ${DRIVE_FOLDER}/${recipe.category}`);
+      await editText(chatId, messageId, `📚 Gespeichert: ${DRIVE_FOLDER}/{pdf,md}/${recipe.category}`);
       cleanupLocal(recipe); // erst nach erfolgreichem Upload
     } catch (e) {
       await editText(chatId, messageId, "❌ Speichern fehlgeschlagen: " + String((e as Error).message).slice(0, 300));
