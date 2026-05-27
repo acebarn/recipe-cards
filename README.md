@@ -304,4 +304,7 @@ Ist `rclone_config` leer, entfällt die Speichern-Abfrage – der Bot schickt nu
 
 Technik: Long-Polling (nur ausgehende Verbindungen, kein offener Port), Typst-aarch64
 + gebündelte Schrift im Container, rclone für Drive, Auto-Neustart bei Aussetzern.
+**Speicherplatz:** Da die Bibliothek in Drive liegt, sind die lokalen Dateien nur
+Arbeitskopien – sie werden nach der Speichern-Entscheidung sofort und als Sicherheitsnetz
+nach 24 h (Waisen) bzw. 1 h (Downloads/PDFs) automatisch entfernt.
 Add-on-Dateien: [`recipe-bot/`](recipe-bot/).

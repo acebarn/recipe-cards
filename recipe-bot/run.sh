@@ -2,6 +2,9 @@
 set -euo pipefail
 cd /app
 
+# Markiert die verwaltete Add-on-Umgebung (lokaler Speicher = transient → Janitor aktiv).
+export RECIPE_BOT_MANAGED=1
+
 # Add-on-Optionen (HA schreibt sie nach /data/options.json) → Umgebungsvariablen.
 opt() { node -e 'const fs=require("fs");let o={};try{o=JSON.parse(fs.readFileSync("/data/options.json","utf8"))}catch(e){};process.stdout.write(String(o[process.argv[1]]??""))' "$1"; }
 export TELEGRAM_BOT_TOKEN="$(opt telegram_bot_token)"

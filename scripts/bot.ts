@@ -7,7 +7,7 @@
 //   ALLOWED_TELEGRAM_USERS   Komma-Liste erlaubter User-IDs (fail-closed: leer = niemand)
 //   PIXAZO_API_KEY / GEMINI_API_KEY   für Bild- bzw. Importschritt
 //   DRIVE_REMOTE / DRIVE_FOLDER       optional – rclone-Remote + Zielordner für die Bibliothek
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +30,8 @@ const ALLOWED = (process.env.ALLOWED_TELEGRAM_USERS ?? "")
 
 const DRIVE_REMOTE = (process.env.DRIVE_REMOTE ?? "drive").trim();
 const DRIVE_FOLDER = (process.env.DRIVE_FOLDER ?? "Rezepte").trim();
+// Vom Add-on gesetzt: nur dann gilt der lokale Speicher als transient (Janitor aktiv).
+const MANAGED = process.env.RECIPE_BOT_MANAGED === "1";
 
 const API = `https://api.telegram.org/bot${TOKEN}`;
 const FILE_API = `https://api.telegram.org/file/bot${TOKEN}`;
@@ -214,10 +216,13 @@ async function handle(msg: any): Promise<void> {
   }
 
   let inputArg: string | undefined;
+  let tmpFile: string | undefined; // heruntergeladene Telegram-Datei → nach Verarbeitung löschen
   if (msg.photo) {
-    inputArg = await downloadFile(msg.photo[msg.photo.length - 1].file_id); // größte Auflösung
+    tmpFile = await downloadFile(msg.photo[msg.photo.length - 1].file_id); // größte Auflösung
+    inputArg = tmpFile;
   } else if (msg.document) {
-    inputArg = await downloadFile(msg.document.file_id);
+    tmpFile = await downloadFile(msg.document.file_id);
+    inputArg = tmpFile;
   } else if (msg.text) {
     inputArg = msg.text.trim();
   }
@@ -233,6 +238,14 @@ async function handle(msg: any): Promise<void> {
   } catch (e) {
     await sendMessage(chatId, "❌ Fehler:\n" + String((e as Error).message).slice(0, 800));
     return;
+  } finally {
+    if (tmpFile && existsSync(tmpFile)) {
+      try {
+        rmSync(tmpFile);
+      } catch {
+        /* ignore */
+      }
+    }
   }
   try {
     await sendDocument(chatId, recipe.pdfPath, `✅ ${recipe.title}`);
@@ -283,6 +296,50 @@ async function handleCallback(cq: any): Promise<void> {
   }
 }
 
+// ---- Janitor: lokalen Speicher begrenzen (die Bibliothek liegt in Drive) ----
+const HOUR = 60 * 60 * 1000;
+
+function removeOlderThan(dir: string, ms: number): void {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  const now = Date.now();
+  for (const e of entries) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) {
+      removeOlderThan(p, ms);
+      continue;
+    }
+    try {
+      if (now - statSync(p).mtimeMs > ms) rmSync(p);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/**
+ * Räumt transiente Dateien auf (Downloads, gerenderte PDFs/Build).
+ * Ist die Bibliothek (Drive) aktiv, sind auch recipes/assets nur Arbeitskopien
+ * → liegen gebliebene Waisen (unbeantwortete Abfragen) werden nach 24 h entfernt.
+ */
+function janitor(): void {
+  if (!MANAGED) return; // außerhalb des Add-ons (z. B. lokal) niemals löschen
+  try {
+    removeOlderThan(join(ROOT, ".bot-tmp"), HOUR);
+    removeOlderThan(join(ROOT, "out"), HOUR);
+    if (driveConfigured()) {
+      removeOlderThan(join(ROOT, "recipes"), 24 * HOUR);
+      removeOlderThan(join(ROOT, "assets"), 24 * HOUR);
+    }
+  } catch (e) {
+    console.error("janitor:", (e as Error).message);
+  }
+}
+
 async function main(): Promise<void> {
   try {
     const me = (await api("getMe")) as { username: string };
@@ -298,6 +355,11 @@ async function main(): Promise<void> {
       ? `Bibliothek aktiv: ${DRIVE_REMOTE}:${DRIVE_FOLDER}`
       : `Bibliothek inaktiv (kein rclone-Remote "${DRIVE_REMOTE}") – Speichern-Abfrage wird übersprungen.`,
   );
+
+  // Aufräumen: beim Start und danach stündlich.
+  janitor();
+  setInterval(janitor, HOUR);
+
   let offset = 0;
   for (;;) {
     let updates: any[];
