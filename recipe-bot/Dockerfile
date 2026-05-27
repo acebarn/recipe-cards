@@ -5,7 +5,7 @@ ARG TYPST_VERSION=v0.14.2
 ARG APP_REF=main
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl git xz-utils \
+ && apt-get install -y --no-install-recommends ca-certificates curl git xz-utils rclone \
  && rm -rf /var/lib/apt/lists/*
 
 # Typst (statischer aarch64-musl-Build – läuft unabhängig von der glibc-Version).

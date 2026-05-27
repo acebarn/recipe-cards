@@ -6,11 +6,13 @@
 //   TELEGRAM_BOT_TOKEN       Pflicht – Token von @BotFather
 //   ALLOWED_TELEGRAM_USERS   Komma-Liste erlaubter User-IDs (fail-closed: leer = niemand)
 //   PIXAZO_API_KEY / GEMINI_API_KEY   für Bild- bzw. Importschritt
+//   DRIVE_REMOTE / DRIVE_FOLDER       optional – rclone-Remote + Zielordner für die Bibliothek
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadDotEnv } from "../src/env.ts";
+import { parseRecipe } from "../src/parse.ts";
 import { slugifyTitle } from "../src/render.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -25,6 +27,9 @@ const ALLOWED = (process.env.ALLOWED_TELEGRAM_USERS ?? "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+
+const DRIVE_REMOTE = (process.env.DRIVE_REMOTE ?? "drive").trim();
+const DRIVE_FOLDER = (process.env.DRIVE_FOLDER ?? "Rezepte").trim();
 
 const API = `https://api.telegram.org/bot${TOKEN}`;
 const FILE_API = `https://api.telegram.org/file/bot${TOKEN}`;
@@ -87,21 +92,105 @@ function node(script: string, args: string[] = []): { out: string } {
   return { out: combined };
 }
 
-/** Import → Bild → PDF; liefert Titel und Pfad der erzeugten PDF. */
-function runPipeline(inputArg: string): { title: string; pdfPath: string } {
+interface Recipe {
+  title: string;
+  slug: string;
+  category: string; // Kategorie-Ordner (gespiegelt nach Drive)
+  mdPath: string;
+  pdfPath: string;
+  imagePath?: string;
+}
+
+/** Import → Bild → PDF; liefert die Pfade des erzeugten Rezepts. */
+function runPipeline(inputArg: string): Recipe {
   // --force: erneutes Senden überschreibt dasselbe Rezept (kein "-2"-Duplikat).
   const imp = node("scripts/import-photo.ts", [inputArg, "--force"]).out;
-  const titleMatch = imp.match(/Entwurf erstellt:\s*(.+)/);
   const pathMatch = imp.match(/→\s*(.+\.md)\s*$/m);
-  if (!titleMatch && !pathMatch) {
-    throw new Error("Konnte das erzeugte Rezept nicht ermitteln.\n" + imp);
-  }
-  const title = titleMatch ? titleMatch[1].trim() : basename(pathMatch![1].trim(), ".md");
-  // PDF-Name = Titel-Slug (identisch zur Benennung im Renderer).
-  const slug = slugifyTitle(title);
+  if (!pathMatch) throw new Error("Konnte das erzeugte Rezept nicht ermitteln.\n" + imp);
+  const mdPath = join(ROOT, pathMatch[1].trim());
   node("scripts/gen-images.ts");
   node("src/cli.ts");
-  return { title, pdfPath: join(ROOT, "out", `${slug}.pdf`) };
+  const recipe = parseRecipe(mdPath);
+  const title = recipe.meta.title;
+  const slug = slugifyTitle(title);
+  const imagePath = ["jpg", "png", "jpeg", "webp"]
+    .map((e) => join(ROOT, "assets", `${slug}.${e}`))
+    .find(existsSync);
+  return {
+    title,
+    slug,
+    category: basename(dirname(mdPath)), // lokaler Kategorie-Ordner, z. B. "salate"
+    mdPath,
+    pdfPath: join(ROOT, "out", `${slug}.pdf`),
+    imagePath,
+  };
+}
+
+// ---- Bibliothek (Google Drive via rclone) ----
+
+/** Prüft, ob rclone verfügbar ist und der konfigurierte Remote existiert. */
+function driveConfigured(): boolean {
+  try {
+    const r = spawnSync("rclone", ["listremotes"], { encoding: "utf8" });
+    if (r.status !== 0) return false;
+    return (r.stdout ?? "").split(/\r?\n/).map((s) => s.trim()).includes(`${DRIVE_REMOTE}:`);
+  } catch {
+    return false;
+  }
+}
+
+/** Lädt Rezept-.md, PDF und Bild in den kategorisierten Drive-Ordner. */
+function uploadToDrive(r: Recipe): void {
+  const dest = `${DRIVE_REMOTE}:${DRIVE_FOLDER}/${r.category}`;
+  const files = [r.mdPath, r.pdfPath, r.imagePath].filter((f): f is string => !!f && existsSync(f));
+  if (files.length === 0) throw new Error("Keine Dateien zum Hochladen gefunden.");
+  for (const f of files) {
+    const res = spawnSync("rclone", ["copy", f, dest], { encoding: "utf8" });
+    if (res.status !== 0) throw new Error((res.stderr || "rclone-Fehler").trim().slice(0, 300));
+  }
+}
+
+/** Entfernt die lokalen Arbeitsdateien eines Rezepts (Bibliothek liegt in Drive). */
+function cleanupLocal(r: Recipe): void {
+  const targets = [
+    r.mdPath,
+    r.pdfPath,
+    r.imagePath,
+    join(ROOT, "out", ".build", `${r.slug}.json`),
+    join(ROOT, "out", ".build", `${r.slug}.typ`),
+  ];
+  for (const t of targets) {
+    try {
+      if (t && existsSync(t)) rmSync(t);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+// Offene Speichern-Abfragen (callback_data → Rezept).
+const pending = new Map<string, Recipe>();
+let pendingSeq = 0;
+
+async function askSaveToLibrary(chatId: number, id: string): Promise<void> {
+  await api("sendMessage", {
+    chat_id: chatId,
+    text: "📚 In der Bibliothek (Google Drive) speichern?",
+    reply_markup: {
+      inline_keyboard: [[
+        { text: "✅ Ja, speichern", callback_data: `save:${id}` },
+        { text: "🗑 Nein", callback_data: `skip:${id}` },
+      ]],
+    },
+  });
+}
+
+async function editText(chatId: number, messageId: number, text: string): Promise<void> {
+  try {
+    await api("editMessageText", { chat_id: chatId, message_id: messageId, text });
+  } catch (e) {
+    console.error("editMessageText:", (e as Error).message);
+  }
 }
 
 async function handle(msg: any): Promise<void> {
@@ -135,17 +224,59 @@ async function handle(msg: any): Promise<void> {
   }
 
   await sendMessage(chatId, "⏳ Verarbeite das Rezept …");
-  let result: { title: string; pdfPath: string };
+  let recipe: Recipe;
   try {
-    result = runPipeline(inputArg);
+    recipe = runPipeline(inputArg);
   } catch (e) {
     await sendMessage(chatId, "❌ Fehler:\n" + String((e as Error).message).slice(0, 800));
     return;
   }
   try {
-    await sendDocument(chatId, result.pdfPath, `✅ ${result.title}`);
+    await sendDocument(chatId, recipe.pdfPath, `✅ ${recipe.title}`);
   } catch (e) {
-    await sendMessage(chatId, `Rezept „${result.title}" erstellt, aber PDF-Versand fehlschlug: ${(e as Error).message}`);
+    await sendMessage(chatId, `Rezept „${recipe.title}" erstellt, aber PDF-Versand fehlschlug: ${(e as Error).message}`);
+    return;
+  }
+
+  // Nach Ansicht des PDFs fragen, ob es in die Bibliothek (Drive) soll.
+  if (driveConfigured()) {
+    const id = String(++pendingSeq);
+    pending.set(id, recipe);
+    await askSaveToLibrary(chatId, id);
+  }
+}
+
+/** Antwort auf die „In Bibliothek speichern?"-Abfrage. */
+async function handleCallback(cq: any): Promise<void> {
+  const userId = String(cq.from?.id ?? "");
+  const chatId = cq.message?.chat?.id as number | undefined;
+  const messageId = cq.message?.message_id as number | undefined;
+  try {
+    await api("answerCallbackQuery", { callback_query_id: cq.id });
+  } catch {
+    /* ignore */
+  }
+  if (!ALLOWED.includes(userId)) return;
+
+  const [action, id] = String(cq.data ?? "").split(":");
+  const recipe = pending.get(id);
+  if (!recipe || chatId === undefined || messageId === undefined) {
+    if (chatId !== undefined && messageId !== undefined) await editText(chatId, messageId, "Aktion abgelaufen.");
+    return;
+  }
+  pending.delete(id);
+
+  if (action === "save") {
+    try {
+      uploadToDrive(recipe);
+      await editText(chatId, messageId, `📚 In Bibliothek gespeichert: ${DRIVE_FOLDER}/${recipe.category}`);
+      cleanupLocal(recipe); // erst nach erfolgreichem Upload
+    } catch (e) {
+      await editText(chatId, messageId, "❌ Speichern fehlgeschlagen: " + String((e as Error).message).slice(0, 300));
+    }
+  } else {
+    cleanupLocal(recipe);
+    await editText(chatId, messageId, "🗑 Nicht gespeichert.");
   }
 }
 
@@ -159,6 +290,11 @@ async function main(): Promise<void> {
   if (ALLOWED.length === 0) {
     console.error("WARNUNG: keine ALLOWED_TELEGRAM_USERS gesetzt – es werden ALLE Nachrichten abgelehnt (fail-closed).");
   }
+  console.error(
+    driveConfigured()
+      ? `Bibliothek aktiv: ${DRIVE_REMOTE}:${DRIVE_FOLDER}`
+      : `Bibliothek inaktiv (kein rclone-Remote "${DRIVE_REMOTE}") – Speichern-Abfrage wird übersprungen.`,
+  );
   let offset = 0;
   for (;;) {
     let updates: any[];
@@ -172,9 +308,10 @@ async function main(): Promise<void> {
     for (const u of updates) {
       offset = u.update_id + 1;
       try {
-        await handle(u.message ?? u.channel_post);
+        if (u.callback_query) await handleCallback(u.callback_query);
+        else await handle(u.message ?? u.channel_post);
       } catch (e) {
-        console.error("handle:", (e as Error).message);
+        console.error("update:", (e as Error).message);
       }
     }
   }

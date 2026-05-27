@@ -1,6 +1,6 @@
 name: Rezeptkarten-Bot
 slug: recipe_bot
-version: "0.1.4"
+version: "0.2.0"
 description: >-
   Telegram-Bot, der aus Foto, Link oder Text eine druckfertige
   A5-Rezeptkarte (PDF) erzeugt und in den Chat zurückschickt.
@@ -15,8 +15,14 @@ options:
   allowed_telegram_users: ""
   pixazo_api_key: ""
   gemini_api_key: ""
+  rclone_config: ""
+  drive_remote: "drive"
+  drive_folder: "Rezepte"
 schema:
   telegram_bot_token: str
   allowed_telegram_users: str?
   pixazo_api_key: str
   gemini_api_key: str
+  rclone_config: str?
+  drive_remote: str?
+  drive_folder: str?

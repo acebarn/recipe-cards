@@ -256,7 +256,8 @@ npm run add -- "Rezepttext …"
 
 Ein Telegram-Bot nimmt **Foto, Link oder Text** direkt im Chat entgegen, fährt die
 Pipeline und schickt die **fertige PDF zurück in den Chat**. Befehle wie `/start`
-liefern eine Kurzhilfe.
+liefern eine Kurzhilfe. Anschließend fragt der Bot, ob das Rezept in die
+**Bibliothek (Google Drive)** übernommen werden soll.
 
 **Lokal testen** (z. B. auf dem Mac):
 
@@ -275,6 +276,24 @@ npm run bot
    (komma-getrennt), `pixazo_api_key`, `gemini_api_key`.
 4. **Starten.** Danach dem Bot in Telegram ein Foto/Link/Text senden → PDF kommt zurück.
 
+### Bibliothek in Google Drive
+
+Nach Ansicht des PDFs bietet der Bot **„Ja, speichern" / „Nein"** an. Bei „Ja" werden
+**Rezept (.md), PDF und Bild** in eine **kategorisierte Ordnerstruktur** in Google Drive
+gelegt: `Rezepte/<Kategorie>/`. Verschoben wird per **rclone**.
+
+Einrichtung (einmalig):
+
+1. **Drive-Ordner** `Rezepte` anlegen. Bei Service-Account-Nutzung den Ordner für die
+   Service-Account-E-Mail **freigeben** (Bearbeiter); bei OAuth entfällt das.
+2. **rclone-Remote** erstellen: auf einem Rechner `rclone config` ausführen (Typ `drive`,
+   OAuth **oder** Service-Account). Den Namen des Remotes merken (Standard hier: `drive`).
+3. Inhalt von `rclone.conf` (Ausgabe von `rclone config file` → Datei anzeigen) in die
+   Add-on-Option **`rclone_config`** kopieren. Optional `drive_remote` und `drive_folder`
+   anpassen (Standard `drive` bzw. `Rezepte`).
+
+Ist `rclone_config` leer, entfällt die Speichern-Abfrage – der Bot schickt nur die PDF.
+
 Technik: Long-Polling (nur ausgehende Verbindungen, kein offener Port), Typst-aarch64
-+ gebündelte Schrift im Container, Rezepte/Bilder/PDFs persistent unter `/data`,
-Auto-Neustart bei Aussetzern. Add-on-Dateien: [`recipe-bot/`](recipe-bot/).
++ gebündelte Schrift im Container, rclone für Drive, Auto-Neustart bei Aussetzern.
+Add-on-Dateien: [`recipe-bot/`](recipe-bot/).
