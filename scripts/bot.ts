@@ -141,7 +141,8 @@ function driveConfigured(): boolean {
 
 /** Lädt Rezept-.md, PDF und Bild in den kategorisierten Drive-Ordner. */
 function uploadToDrive(r: Recipe): void {
-  const dest = `${DRIVE_REMOTE}:${DRIVE_FOLDER}/${r.category}`;
+  const sub = [DRIVE_FOLDER, r.category].filter(Boolean).join("/");
+  const dest = `${DRIVE_REMOTE}:${sub}`;
   const files = [r.mdPath, r.pdfPath, r.imagePath].filter((f): f is string => !!f && existsSync(f));
   if (files.length === 0) throw new Error("Keine Dateien zum Hochladen gefunden.");
   for (const f of files) {
