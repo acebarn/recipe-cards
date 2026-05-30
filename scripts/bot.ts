@@ -66,11 +66,16 @@ async function sendMessage(chatId: number, text: string): Promise<void> {
   }
 }
 
-async function sendDocument(chatId: number, filePath: string, caption: string): Promise<void> {
+async function sendDocument(
+  chatId: number,
+  filePath: string,
+  caption: string,
+  mime: string = "application/pdf",
+): Promise<void> {
   const fd = new FormData();
   fd.append("chat_id", String(chatId));
   if (caption) fd.append("caption", caption);
-  fd.append("document", new Blob([readFileSync(filePath)], { type: "application/pdf" }), basename(filePath));
+  fd.append("document", new Blob([readFileSync(filePath)], { type: mime }), basename(filePath));
   const res = await fetch(`${API}/sendDocument`, { method: "POST", body: fd });
   const j = (await res.json()) as { ok: boolean; description?: string };
   if (!j.ok) throw new Error(`sendDocument: ${j.description ?? res.status}`);
@@ -176,18 +181,36 @@ function cleanupLocal(r: Recipe): void {
 // Offene Speichern-Abfragen (callback_data → Rezept).
 const pending = new Map<string, Recipe>();
 let pendingSeq = 0;
+// Chats, deren nächste Nachricht als Edit eines Rezepts behandelt wird (chatId → recipeId).
+const pendingEdits = new Map<number, string>();
 
 async function askSaveToLibrary(chatId: number, id: string): Promise<void> {
   await api("sendMessage", {
     chat_id: chatId,
-    text: "📚 In der Bibliothek (Google Drive) speichern?",
+    text: "📚 Wie geht es weiter?",
     reply_markup: {
-      inline_keyboard: [[
-        { text: "✅ Ja, speichern", callback_data: `save:${id}` },
-        { text: "🗑 Nein", callback_data: `skip:${id}` },
-      ]],
+      inline_keyboard: [
+        [
+          { text: "✅ Speichern", callback_data: `save:${id}` },
+          { text: "✏️ Bearbeiten", callback_data: `edit:${id}` },
+          { text: "🗑 Verwerfen", callback_data: `skip:${id}` },
+        ],
+      ],
     },
   });
+}
+
+/** Schickt den aktuellen Markdown-Text zur Bearbeitung in den Chat. */
+async function sendForEdit(chatId: number, r: Recipe): Promise<void> {
+  const md = readFileSync(r.mdPath, "utf8");
+  const hint =
+    "✏️ Schicke die korrigierte Version zurück (als Nachricht oder .md-Datei). " +
+    "Danach erhältst du die neue PDF.";
+  if (md.length <= 3500) {
+    await api("sendMessage", { chat_id: chatId, text: `${hint}\n\n${md}` });
+  } else {
+    await sendDocument(chatId, r.mdPath, hint, "text/markdown");
+  }
 }
 
 async function editText(chatId: number, messageId: number, text: string): Promise<void> {
@@ -213,6 +236,35 @@ async function handle(msg: any): Promise<void> {
   if (typeof msg.text === "string" && msg.text.trim().startsWith("/")) {
     await sendMessage(chatId, WELCOME);
     return;
+  }
+
+  // Edit-Modus: nächste Text-/.md-Antwort ersetzt den Rezepttext.
+  const editId = pendingEdits.get(chatId);
+  if (editId) {
+    let newMd: string | undefined;
+    if (msg.text) {
+      newMd = msg.text;
+    } else if (msg.document) {
+      const name = (msg.document.file_name ?? "").toLowerCase();
+      const mime = msg.document.mime_type ?? "";
+      if (name.endsWith(".md") || mime === "text/markdown" || mime.startsWith("text/")) {
+        const f = await downloadFile(msg.document.file_id);
+        newMd = readFileSync(f, "utf8");
+        try {
+          rmSync(f);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    if (newMd) {
+      pendingEdits.delete(chatId);
+      await processEdit(chatId, editId, newMd);
+      return;
+    }
+    // anderer Inhalt (Foto …) → Edit abbrechen, normal weiterverarbeiten
+    pendingEdits.delete(chatId);
+    await sendMessage(chatId, "Edit abgebrochen – verarbeite als neue Eingabe.");
   }
 
   let inputArg: string | undefined;
@@ -280,9 +332,8 @@ async function handleCallback(cq: any): Promise<void> {
     if (chatId !== undefined && messageId !== undefined) await editText(chatId, messageId, "Aktion abgelaufen.");
     return;
   }
-  pending.delete(id);
-
   if (action === "save") {
+    pending.delete(id);
     try {
       uploadToDrive(recipe);
       await editText(chatId, messageId, `📚 Gespeichert: ${DRIVE_FOLDER}/{pdf,md}/${recipe.category}`);
@@ -290,9 +341,60 @@ async function handleCallback(cq: any): Promise<void> {
     } catch (e) {
       await editText(chatId, messageId, "❌ Speichern fehlgeschlagen: " + String((e as Error).message).slice(0, 300));
     }
+  } else if (action === "edit") {
+    // Rezept im pending lassen; nächste Nachricht des Users wird als neuer MD-Text aufgefasst.
+    pendingEdits.set(chatId, id);
+    await editText(chatId, messageId, "✏️ Warte auf bearbeiteten Markdown-Text …");
+    try {
+      await api("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } });
+    } catch {
+      /* ignore */
+    }
+    await sendForEdit(chatId, recipe);
   } else {
+    pending.delete(id);
     cleanupLocal(recipe);
     await editText(chatId, messageId, "🗑 Nicht gespeichert.");
+  }
+}
+
+/** Re-Render nach Edit: MD überschreiben, Bilder + PDF neu, dann erneut nachfragen. */
+async function processEdit(chatId: number, recipeId: string, newMd: string): Promise<void> {
+  const old = pending.get(recipeId);
+  if (!old) {
+    await sendMessage(chatId, "Edit-Sitzung abgelaufen.");
+    return;
+  }
+  if (!newMd.includes("---") || !newMd.includes("title")) {
+    await sendMessage(chatId, "❌ Der Text enthält kein gültiges Frontmatter – Edit abgebrochen.");
+    return;
+  }
+  await sendMessage(chatId, "⏳ Aktualisiere und rendere neu …");
+  try {
+    writeFileSync(old.mdPath, newMd, "utf8");
+    const parsed = parseRecipe(old.mdPath);
+    const title = parsed.meta.title;
+    const slug = slugifyTitle(title);
+    const category = basename(dirname(old.mdPath));
+    node("scripts/gen-images.ts");
+    node("src/cli.ts");
+    const imagePath = ["jpg", "png", "jpeg", "webp"]
+      .map((e) => join(ROOT, "assets", `${slug}.${e}`))
+      .find(existsSync);
+    const updated: Recipe = {
+      title,
+      slug,
+      category,
+      mdPath: old.mdPath,
+      pdfPath: join(ROOT, "out", category, `${slug}.pdf`),
+      imagePath,
+    };
+    pending.set(recipeId, updated);
+    await sendDocument(chatId, updated.pdfPath, `✅ ${updated.title}`);
+    if (driveConfigured()) await askSaveToLibrary(chatId, recipeId);
+  } catch (e) {
+    await sendMessage(chatId, "❌ Edit fehlgeschlagen:\n" + String((e as Error).message).slice(0, 800));
+    pending.delete(recipeId);
   }
 }
 
