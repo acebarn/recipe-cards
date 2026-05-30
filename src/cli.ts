@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { matchesFilter } from "./filter.ts";
@@ -100,9 +100,12 @@ function main(): void {
     }
 
     try {
+      // Kategorie-Struktur aus dem Eingabe-Ordner im Output spiegeln.
+      const sub = dirname(relative(recipesDir, recipe.sourceFile));
+      const effectiveOut = sub && sub !== "." ? join(outDir, sub) : outDir;
       const { pdfPath, pages, scaleFront, scaleBack } = renderCard(recipe, {
         projectRoot: PROJECT_ROOT,
-        outDir,
+        outDir: effectiveOut,
         scale,
       });
       const pageInfo = pages > 0 ? ` (${pages} ${pages === 1 ? "Seite" : "Seiten"})` : "";

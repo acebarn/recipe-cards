@@ -123,7 +123,7 @@ function runPipeline(inputArg: string): Recipe {
     slug,
     category: basename(dirname(mdPath)), // lokaler Kategorie-Ordner, z. B. "salate"
     mdPath,
-    pdfPath: join(ROOT, "out", `${slug}.pdf`),
+    pdfPath: join(ROOT, "out", basename(dirname(mdPath)), `${slug}.pdf`),
     imagePath,
   };
 }
