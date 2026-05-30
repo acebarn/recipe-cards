@@ -11,6 +11,7 @@
     "images": "node scripts/gen-images.ts",
     "import": "node scripts/import-photo.ts",
     "add": "node scripts/add.ts",
+    "refresh": "node scripts/refresh.ts",
     "bot": "node scripts/bot.ts"
   },
   "engines": {

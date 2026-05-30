@@ -258,6 +258,18 @@ npm run add -- "https://example.com/rezept"
 npm run add -- "Rezepttext …"
 ```
 
+## Bibliothek vervollständigen (Bilder + PDFs)
+
+Für eine **bestehende Sammlung** (z. B. nach einem Reimport): fehlende Aquarell-Bilder
+erzeugen und alle PDFs rendern – in einem Befehl, mit `--input`/`--out` durchgereicht:
+
+```bash
+npm run refresh                                              # ./recipes → ./out
+npm run refresh -- --input ~/Drive/Rezepte/md \
+                  --out ~/Drive/Rezepte/pdf                  # Reimport
+npm run refresh -- --category backen                         # nur Kategorie
+```
+
 ---
 
 ## Telegram-Bot (komfortabelster Weg)
