@@ -169,8 +169,10 @@ export function renderCard(
 ): RenderResult {
   const { projectRoot, outDir, scale } = options;
   const slug = slugify(recipe);
-  const buildDir = join(outDir, ".build");
+  // Wrapper & JSON müssen INNERHALB des Typst-Root liegen; die PDF darf irgendwohin.
+  const buildDir = join(projectRoot, ".cli-build");
   mkdirSync(buildDir, { recursive: true });
+  mkdirSync(outDir, { recursive: true });
 
   const data = buildCardData(recipe, scale, { slug, projectRoot });
   const jsonPath = join(buildDir, `${slug}.json`);

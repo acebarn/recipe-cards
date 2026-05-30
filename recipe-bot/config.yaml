@@ -1,6 +1,6 @@
 name: Rezeptkarten-Bot
 slug: recipe_bot
-version: "0.2.3"
+version: "0.2.4"
 description: >-
   Telegram-Bot, der aus Foto, Link oder Text eine druckfertige
   A5-Rezeptkarte (PDF) erzeugt und in den Chat zurückschickt.

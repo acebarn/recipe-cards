@@ -161,8 +161,8 @@ function cleanupLocal(r: Recipe): void {
     r.mdPath,
     r.pdfPath,
     r.imagePath,
-    join(ROOT, "out", ".build", `${r.slug}.json`),
-    join(ROOT, "out", ".build", `${r.slug}.typ`),
+    join(ROOT, ".cli-build", `${r.slug}.json`),
+    join(ROOT, ".cli-build", `${r.slug}.typ`),
   ];
   for (const t of targets) {
     try {
@@ -331,6 +331,7 @@ function janitor(): void {
   try {
     removeOlderThan(join(ROOT, ".bot-tmp"), HOUR);
     removeOlderThan(join(ROOT, "out"), HOUR);
+    removeOlderThan(join(ROOT, ".cli-build"), HOUR);
     if (driveConfigured()) {
       removeOlderThan(join(ROOT, "recipes"), 24 * HOUR);
       removeOlderThan(join(ROOT, "assets"), 24 * HOUR);

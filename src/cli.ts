@@ -14,11 +14,16 @@ function printHelp(): void {
 
 Verwendung:
   recipe-cards [verzeichnis] [optionen]
+  recipe-cards --input <ordner> --out <ordner> [optionen]
+
+Beide Ordner sind frei wählbar (auch außerhalb des Projekts) – z.B. um eine
+heruntergeladene Sammlung lokal neu zu rendern (Reimport).
 
 Argumente:
-  verzeichnis            Ordner mit .md-Rezepten (Standard: ./recipes)
+  verzeichnis            Eingabe-Ordner mit .md-Rezepten (Standard: ./recipes)
 
 Optionen:
+  --input <ordner>       Eingabe-Ordner (Alternative zum Positional-Argument)
   --out <ordner>         Zielordner für PDFs (Standard: ./out)
   --scale <faktor>       Mengen in der Zutatenliste skalieren, z.B. 2 oder 0.5
   --category <name>      nur Rezepte dieser Kategorie
@@ -31,6 +36,7 @@ function main(): void {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
+      input: { type: "string" },
       out: { type: "string" },
       scale: { type: "string" },
       category: { type: "string" },
@@ -45,7 +51,7 @@ function main(): void {
     return;
   }
 
-  const recipesDir = resolve(positionals[0] ?? join(PROJECT_ROOT, "recipes"));
+  const recipesDir = resolve(values.input ?? positionals[0] ?? join(PROJECT_ROOT, "recipes"));
   const outDir = resolve(values.out ?? join(PROJECT_ROOT, "out"));
 
   const scale = values.scale != null ? Number(values.scale.replace(",", ".")) : 1;

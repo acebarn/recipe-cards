@@ -120,13 +120,21 @@ npm start -- --category backen
 
 | Option | Beschreibung |
 |--------|--------------|
-| `[verzeichnis]` | Ordner mit Rezepten (Standard: `./recipes`) |
+| `[verzeichnis]` | Eingabe-Ordner mit Rezepten (Standard: `./recipes`) |
+| `--input <ordner>` | Eingabe-Ordner (Alternative zum Positional-Argument) |
 | `--out <ordner>` | Zielordner für die PDFs (Standard: `./out`) |
 | `--scale <faktor>` | Zutatenmengen skalieren, z. B. `2` oder `0,5` |
 | `--category <name>` | nur Rezepte dieser Kategorie |
 | `--tag <name>` | nur Rezepte mit diesem Tag |
 | `--grouping <name>` | nur Rezepte dieser Gruppierung |
 | `-h`, `--help` | Hilfe anzeigen |
+
+Eingabe- und Ausgabe-Ordner dürfen **außerhalb des Projekts** liegen — praktisch für
+einen **Reimport**, z. B. wenn du eine Drive-Bibliothek lokal neu rendern willst:
+
+```bash
+npm start -- --input ~/Drive/Rezepte/md --out ~/Drive/Rezepte/pdf
+```
 
 **Mengen-Skalierung:** `--scale` rechnet nur die **Zutatenliste** um – inklusive
 Unicode-Brüchen (`½ Pck. → 1 Pck.`, `¼ TL → ⅛ TL`). Schritttexte bleiben unverändert.
