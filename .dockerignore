@@ -1,0 +1,17 @@
+.git
+node_modules
+.svelte-kit
+build
+data
+out
+.cli-build
+.bot-tmp
+assets
+site-dist
+.env
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+recipe-bot
+recipe-site

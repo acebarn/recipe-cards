@@ -11,3 +11,4 @@ data/
 *.db-shm
 .svelte-kit/
 build/
+web.env

@@ -1,0 +1,22 @@
+# Web-App-Stack auf dem VPS. Aufruf im Repo-Verzeichnis (/opt/recipe-cards/app):
+#   docker compose up -d --build
+#
+# Der Telegram-Bot läuft (vorerst) weiter als eigener Container; er wird in M5
+# auf die gemeinsame Service-Schicht/DB umgestellt.
+services:
+  web:
+    build: .
+    image: recipe-web:latest
+    container_name: recipe-web
+    restart: unless-stopped
+    # Secrets/Config außerhalb des Repos (GEMINI/PIXAZO/AUTH_*, ORIGIN, RECIPE_SYNC …)
+    env_file:
+      - /opt/recipe-cards/web.env
+    environment:
+      RECIPE_DB_PATH: /data/library.db
+    volumes:
+      - /opt/recipe-cards/web-data:/data # library.db + Sync-Status (persistent)
+      - /opt/recipe-cards/web-data/assets:/app/assets # Aquarell-Bilder (im projectRoot für Typst)
+      - /opt/recipe-cards/data/rclone:/root/.config/rclone # rclone-Remote (mit dem Bot geteilt)
+    ports:
+      - "127.0.0.1:3000:3000" # nur nginx spricht mit der App
