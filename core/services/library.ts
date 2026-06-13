@@ -282,6 +282,13 @@ export function purgeRecipe(slug: string): void {
   getDb().prepare("DELETE FROM recipes WHERE slug = ? AND deleted_at IS NOT NULL").run(slug);
 }
 
+/** Exakte Schritt→Zutat-Zuordnung setzen (M3); überschreibt die bisherige. */
+export function setStepIngredients(slug: string, mapping: number[][]): void {
+  getDb()
+    .prepare("UPDATE recipes SET step_ingredients_json = ? WHERE slug = ? AND deleted_at IS NULL")
+    .run(JSON.stringify(mapping), slug);
+}
+
 // ---------------- Bilder ----------------
 
 /** Setzt das Bild eines Rezepts (ersetzt eine evtl. vorhandene Zuordnung – idempotent). */

@@ -13,6 +13,7 @@ export const load: PageServerLoad = ({ params, url }) => {
     ingredients: r.ingredients,
     equipment: r.meta.equipment ?? [],
     steps: r.steps,
+    stepIngredients: r.stepIngredients ?? null, // exakte Zuordnung (M3) oder null → Heuristik
     initialScale: Number.isFinite(s) && s > 0 ? s : 1,
   };
 };

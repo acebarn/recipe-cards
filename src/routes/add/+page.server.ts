@@ -12,6 +12,7 @@ import {
   type Input,
 } from "$core/services/import-recipe.ts";
 import { queueImageGeneration } from "$core/services/image-store.ts";
+import { queueStepMapping } from "$core/services/step-map.ts";
 import { enqueueUpsert } from "$core/services/sync-queue.ts";
 import { fail, redirect } from "@sveltejs/kit";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -34,8 +35,9 @@ async function createFromInput(input: Input, userId?: number): Promise<string> {
     createdBy: userId,
   });
   enqueueUpsert(slug);
-  // Aquarell-Bild asynchron erzeugen (blockiert das Anlegen nicht).
+  // Aquarell-Bild + Schritt→Zutat-Zuordnung asynchron erzeugen (blockiert nicht).
   queueImageGeneration(recipe, slug, env.PIXAZO_API_KEY);
+  queueStepMapping(recipe, slug, env.GEMINI_API_KEY);
   return slug;
 }
 

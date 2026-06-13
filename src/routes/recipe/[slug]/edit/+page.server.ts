@@ -1,9 +1,11 @@
+import { env } from "$env/dynamic/private";
 import { parseRecipeFromString } from "$core/parse.ts";
 import {
   categoryDirForCategory,
   getRecipeBySlug,
   updateRecipe,
 } from "$core/services/library.ts";
+import { queueStepMapping } from "$core/services/step-map.ts";
 import { enqueueUpsert } from "$core/services/sync-queue.ts";
 import { error, fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
@@ -31,6 +33,8 @@ export const actions: Actions = {
     });
     if (!updated) return fail(404, { error: "Rezept nicht gefunden.", markdown });
     enqueueUpsert(params.slug);
+    // updateRecipe hat das alte Mapping geleert → neu erzeugen (bis dahin Heuristik).
+    queueStepMapping(recipe, params.slug, env.GEMINI_API_KEY);
     throw redirect(303, `/recipe/${params.slug}`);
   },
 };

@@ -20,8 +20,15 @@
   let flat = $derived(
     data.ingredients.flatMap((s) => s.items.map((line) => ({ section: s.name ?? null, line }))),
   );
-  // je Schritt benötigte Zutaten + Werkzeuge (skaliert dargestellt)
-  let needed = $derived(flat.filter((i) => mentionedIn(current, i.line)).map((i) => scaleIngredient(i.line, scale)));
+  // je Schritt benötigte Zutaten (skaliert): exakte Zuordnung (M3) falls vorhanden,
+  // sonst Heuristik. Werkzeuge bleiben heuristisch.
+  let needed = $derived.by(() => {
+    const exact = data.stepIngredients?.[stepIndex];
+    const lines = exact
+      ? exact.map((idx) => flat[idx]?.line).filter((l): l is string => !!l)
+      : flat.filter((i) => mentionedIn(current, i.line)).map((i) => i.line);
+    return lines.map((l) => scaleIngredient(l, scale));
+  });
   let neededTools = $derived(data.equipment.filter((e) => mentionedIn(current, e)));
   // alle Zutaten (skaliert), gruppiert
   let groups = $derived(

@@ -5,6 +5,7 @@
 // als auch vom Web-/Bot-Add-Flow. Datei-Ablage/Argument-Parsing liegt bei den Aufrufern.
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { flattenIngredients } from "../ingredients.ts";
 import type { Recipe } from "../model.ts";
 import { parseRecipeFromString } from "../parse.ts";
 
@@ -331,4 +332,65 @@ export async function importRecipeMarkdown(input: Input, opts: ImportOptions): P
 export async function importRecipe(input: Input, opts: ImportOptions): Promise<Recipe> {
   const markdown = await importRecipeMarkdown(input, opts);
   return parseRecipeFromString(markdown, input.label);
+}
+
+// ---------------- Schritt → Zutat-Zuordnung (M3) ----------------
+
+/** Gemini mit JSON-Ausgabe aufrufen und das Objekt geparst zurückgeben. */
+async function callGeminiJson<T>(prompt: string, apiKey: string, model: string): Promise<T> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0, responseMimeType: "application/json" },
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${res.statusText}: ${(await res.text()).slice(0, 300)}`);
+  }
+  const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Part[] } }> };
+  const text = (data.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+  const m = text.match(/\{[\s\S]*\}/); // robust gegen evtl. Code-Fences/Vorspann
+  if (!m) throw new Error(`Keine JSON-Antwort: ${text.slice(0, 200)}`);
+  return JSON.parse(m[0]) as T;
+}
+
+function buildStepMapPrompt(ingredients: string[], steps: string[]): string {
+  const ing = ingredients.map((s, i) => `${i}: ${s}`).join("\n");
+  const stp = steps.map((s, i) => `${i}: ${s}`).join("\n");
+  return `Du erhältst die Zutaten und Schritte eines Rezepts, jeweils ab 0 nummeriert.
+Gib für JEDEN Schritt die Indizes der Zutaten zurück, die in diesem Schritt verwendet,
+hinzugefügt oder verarbeitet werden. Nur Zutaten – keine Werkzeuge, keine Mengen.
+Wenn ein Schritt keine konkrete Zutat verwendet, gib eine leere Liste zurück.
+
+Antworte AUSSCHLIESSLICH als JSON in genau dieser Form (so viele Einträge wie Schritte, in Reihenfolge):
+{"steps": [[0,2], [1], [], ...]}
+
+Zutaten:
+${ing}
+
+Schritte:
+${stp}`;
+}
+
+/**
+ * Erzeugt die exakte Schritt→Zutat-Zuordnung (Indizes in die flache Zutatenliste,
+ * siehe flattenIngredients). Validiert die Indizes; bei leerem Rezept leere Listen.
+ */
+export async function mapStepIngredients(recipe: Recipe, opts: ImportOptions): Promise<number[][]> {
+  const ingredients = flattenIngredients(recipe.ingredients);
+  if (!ingredients.length || !recipe.steps.length) return recipe.steps.map(() => []);
+  const out = await callGeminiJson<{ steps?: number[][] }>(
+    buildStepMapPrompt(ingredients, recipe.steps),
+    opts.apiKey,
+    opts.model ?? DEFAULT_IMPORT_MODEL,
+  );
+  const arr = Array.isArray(out?.steps) ? out.steps : [];
+  const n = ingredients.length;
+  return recipe.steps.map((_, i) => {
+    const ids = Array.isArray(arr[i]) ? arr[i] : [];
+    return [...new Set(ids.filter((x) => Number.isInteger(x) && x >= 0 && x < n))];
+  });
 }
