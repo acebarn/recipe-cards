@@ -45,6 +45,6 @@ step(
   "node",
   ["scripts/gen-images.ts", ...(inputDir ? [inputDir] : [])],
 );
-step("PDF-Rendering", "node", ["src/cli.ts", ...args]);
+step("PDF-Rendering", "node", ["scripts/cli.ts", ...args]);
 
 console.error("\n✓ Fertig.");

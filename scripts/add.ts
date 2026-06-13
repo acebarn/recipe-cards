@@ -36,6 +36,6 @@ step("Import", "node", ["scripts/import-photo.ts", ...args]);
 // 2) Bilder (erzeugt nur fehlende Badges)
 step("Bildgenerierung", "node", ["scripts/gen-images.ts"]);
 // 3) PDF-Rendering
-step("PDF-Rendering", "node", ["src/cli.ts"]);
+step("PDF-Rendering", "node", ["scripts/cli.ts"]);
 
 console.error("\n✓ Fertig.");

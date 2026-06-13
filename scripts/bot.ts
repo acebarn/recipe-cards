@@ -11,9 +11,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { spawnSync } from "node:child_process";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadDotEnv } from "../src/env.ts";
-import { parseRecipe } from "../src/parse.ts";
-import { slugifyTitle } from "../src/render.ts";
+import { loadDotEnv } from "../core/env.ts";
+import { parseRecipe } from "../core/parse.ts";
+import { slugifyTitle } from "../core/render.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 loadDotEnv(ROOT);
@@ -116,7 +116,7 @@ function runPipeline(inputArg: string): Recipe {
   if (!pathMatch) throw new Error("Konnte das erzeugte Rezept nicht ermitteln.\n" + imp);
   const mdPath = join(ROOT, pathMatch[1].trim());
   node("scripts/gen-images.ts");
-  node("src/cli.ts");
+  node("scripts/cli.ts");
   const recipe = parseRecipe(mdPath);
   const title = recipe.meta.title;
   const slug = slugifyTitle(title);
@@ -377,7 +377,7 @@ async function processEdit(chatId: number, recipeId: string, newMd: string): Pro
     const slug = slugifyTitle(title);
     const category = basename(dirname(old.mdPath));
     node("scripts/gen-images.ts");
-    node("src/cli.ts");
+    node("scripts/cli.ts");
     const imagePath = ["jpg", "png", "jpeg", "webp"]
       .map((e) => join(ROOT, "assets", `${slug}.${e}`))
       .find(existsSync);

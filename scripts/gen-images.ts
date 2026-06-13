@@ -3,11 +3,11 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { loadDotEnv } from "../src/env.ts";
-import type { Recipe } from "../src/model.ts";
-import { parseRecipe } from "../src/parse.ts";
-import { slugify } from "../src/render.ts";
-import { findRecipeFiles } from "../src/scan.ts";
+import { loadDotEnv } from "../core/env.ts";
+import type { Recipe } from "../core/model.ts";
+import { parseRecipe } from "../core/parse.ts";
+import { slugify } from "../core/render.ts";
+import { findRecipeFiles } from "../core/scan.ts";
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Pixazo FLUX.1 [schnell] — günstig (~$0,0012/Bild), synchroner Flow.

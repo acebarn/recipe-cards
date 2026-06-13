@@ -3,9 +3,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { loadDotEnv } from "../src/env.ts";
-import { parseRecipe } from "../src/parse.ts";
-import { slugify } from "../src/render.ts";
+import { loadDotEnv } from "../core/env.ts";
+import { parseRecipe } from "../core/parse.ts";
+import { slugify } from "../core/render.ts";
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_MODEL = "gemini-3.5-flash";

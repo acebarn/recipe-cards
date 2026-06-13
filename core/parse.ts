@@ -117,14 +117,23 @@ function parseBody(body: string): {
   };
 }
 
-export function parseRecipe(filePath: string): Recipe {
-  const text = readFileSync(filePath, "utf8");
+/**
+ * Parst Rezept-Markdown (YAML-Frontmatter + Body) aus einem String.
+ * `sourceLabel` landet als `sourceFile` (Dateipfad bei parseRecipe, sonst
+ * z.B. eine URL/„telegram"-Quelle beim Web-/Bot-Import).
+ */
+export function parseRecipeFromString(text: string, sourceLabel = ""): Recipe {
   const fm = text.match(FRONTMATTER);
   if (!fm) {
-    throw new Error(`Kein YAML-Frontmatter in ${basename(filePath)} gefunden.`);
+    const where = sourceLabel ? ` in ${basename(sourceLabel)}` : "";
+    throw new Error(`Kein YAML-Frontmatter${where} gefunden.`);
   }
   const meta = parseMeta((parseYaml(fm[1]) ?? {}) as Record<string, unknown>);
   const body = text.slice(fm[0].length);
   const { ingredients, steps, notes } = parseBody(body);
-  return { meta, ingredients, steps, notes, sourceFile: filePath };
+  return { meta, ingredients, steps, notes, sourceFile: sourceLabel };
+}
+
+export function parseRecipe(filePath: string): Recipe {
+  return parseRecipeFromString(readFileSync(filePath, "utf8"), filePath);
 }

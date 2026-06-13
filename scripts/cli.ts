@@ -2,10 +2,10 @@
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { matchesFilter } from "./filter.ts";
-import { parseRecipe } from "./parse.ts";
-import { renderCard } from "./render.ts";
-import { findRecipeFiles } from "./scan.ts";
+import { matchesFilter } from "../core/filter.ts";
+import { parseRecipe } from "../core/parse.ts";
+import { renderCard } from "../core/render.ts";
+import { findRecipeFiles } from "../core/scan.ts";
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 

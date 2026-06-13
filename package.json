@@ -4,10 +4,10 @@
   "description": "Scannt YAML-Rezepte und rendert druckfertige A5-Rezeptkarten via Typst.",
   "type": "module",
   "bin": {
-    "recipe-cards": "src/cli.ts"
+    "recipe-cards": "scripts/cli.ts"
   },
   "scripts": {
-    "start": "node src/cli.ts",
+    "start": "node scripts/cli.ts",
     "images": "node scripts/gen-images.ts",
     "import": "node scripts/import-photo.ts",
     "add": "node scripts/add.ts",
@@ -18,6 +18,7 @@
     "node": ">=23.6"
   },
   "dependencies": {
+    "better-sqlite3": "^12.10.0",
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0",
     "yaml": "^2.7.0"
