@@ -5,3 +5,7 @@ out/
 .DS_Store
 .claude/settings.local.json
 .bot-tmp/
+data/
+*.db
+*.db-wal
+*.db-shm
