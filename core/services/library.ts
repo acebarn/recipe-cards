@@ -284,16 +284,20 @@ export function purgeRecipe(slug: string): void {
 
 // ---------------- Bilder ----------------
 
+/** Setzt das Bild eines Rezepts (ersetzt eine evtl. vorhandene Zuordnung – idempotent). */
 export function setRecipeImage(
   slug: string,
   filename: string,
   opts: { mime?: string; source?: string } = {},
 ): void {
-  getDb()
-    .prepare(
+  const db = getDb();
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM images WHERE recipe_slug = ?").run(slug);
+    db.prepare(
       "INSERT INTO images (recipe_slug, filename, mime, source, created_at) VALUES (?, ?, ?, ?, ?)",
-    )
-    .run(slug, filename, opts.mime ?? null, opts.source ?? null, new Date().toISOString());
+    ).run(slug, filename, opts.mime ?? null, opts.source ?? null, new Date().toISOString());
+  });
+  tx();
 }
 
 // ---------------- Lesen / Suche ----------------
