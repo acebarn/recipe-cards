@@ -1,7 +1,11 @@
+import { startSyncWorker } from "$core/services/drive-sync.ts";
 import { getUserByEmail } from "$core/services/users.ts";
 import { redirect, type Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { authHandle } from "./auth.ts";
+
+// Drive-Sync-Worker beim Server-Start anstoßen (No-op ohne RECIPE_SYNC=1).
+startSyncWorker();
 
 // Routen, die ohne Freigabe erreichbar sind.
 const PUBLIC_PATHS = new Set(["/login", "/pending"]);
