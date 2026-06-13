@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import { formatQuantity, scaleIngredient } from "$core/scale.ts";
   import { inlineMd } from "$lib/inline-md.ts";
   import type { PageData } from "./$types";
 
@@ -8,6 +9,8 @@
 
   let scale = $state(1);
   let pdfHref = $derived(`/recipe/${r.slug}/pdf${scale !== 1 ? `?scale=${scale}` : ""}`);
+  let cookHref = $derived(`/recipe/${r.slug}/cook${scale !== 1 ? `?scale=${scale}` : ""}`);
+  let scaledServings = $derived(r.servings ? formatQuantity(r.servings * scale) : null);
 
   const confirmDelete = (e: SubmitEvent) => {
     if (!confirm(`„${r.title}" wirklich löschen? (auch aus Google Drive beim nächsten Sync)`)) {
@@ -30,6 +33,7 @@
   <a href="/">← Übersicht</a>
   <div class="tools">
     <label class="scale">×<input type="number" min="0.25" max="20" step="0.25" bind:value={scale} /></label>
+    <a class="btn" href={cookHref}>🍳 Kochmodus</a>
     <a class="btn" href={pdfHref} target="_blank" rel="noopener">PDF</a>
     <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
     <form method="POST" action="?/delete" use:enhance onsubmit={confirmDelete}>
@@ -48,7 +52,7 @@
       <div class="chips">
         {#if r.category}<span class="chip">{r.category}</span>{/if}
         {#if r.difficulty}<span class="chip">{r.difficulty}</span>{/if}
-        {#if r.servings}<span class="chip">{r.servings} Portion{r.servings === 1 ? "" : "en"}</span>{/if}
+        {#if scaledServings}<span class="chip">{scaledServings} Portion{scaledServings === "1" ? "" : "en"}</span>{/if}
         {#each timeChips as [label, val] (label)}<span class="chip">{label}: {val}</span>{/each}
       </div>
     </div>
@@ -60,7 +64,7 @@
       {#each r.ingredients as sec (sec.name ?? "_")}
         {#if sec.name}<h3>{sec.name}</h3>{/if}
         <ul>
-          {#each sec.items as item (item)}<li>{item}</li>{/each}
+          {#each sec.items as item (item)}<li>{scaleIngredient(item, scale)}</li>{/each}
         </ul>
       {/each}
       {#if r.equipment.length}
