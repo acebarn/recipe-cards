@@ -326,6 +326,23 @@ export function listRecipes(): StoredRecipe[] {
   return rows.map(rowToStored);
 }
 
+/**
+ * Passenden Drive-Ordner (category_dir) für eine Kategorie ableiten: bevorzugt den
+ * eines bestehenden Rezepts derselben Kategorie (z.B. "3 backen"), sonst die
+ * Kategorie selbst. Für neu angelegte Rezepte.
+ */
+export function categoryDirForCategory(category?: string): string | undefined {
+  if (!category) return undefined;
+  const row = getDb()
+    .prepare(
+      `SELECT category_dir FROM recipes
+       WHERE category = ? AND category_dir IS NOT NULL AND deleted_at IS NULL
+       ORDER BY id LIMIT 1`,
+    )
+    .get(category) as { category_dir: string } | undefined;
+  return row?.category_dir ?? category;
+}
+
 /** Eindeutigen Slug finden (base, base-2, base-3, …) – nur aktive Rezepte zählen. */
 export function uniqueSlug(base: string): string {
   const db = getDb();

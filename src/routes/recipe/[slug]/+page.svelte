@@ -1,9 +1,16 @@
 <script lang="ts">
+  import { enhance } from "$app/forms";
   import { inlineMd } from "$lib/inline-md.ts";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
   let r = $derived(data.recipe);
+
+  const confirmDelete = (e: SubmitEvent) => {
+    if (!confirm(`„${r.title}" wirklich löschen? (auch aus Google Drive beim nächsten Sync)`)) {
+      e.preventDefault();
+    }
+  };
 
   let timeChips = $derived(
     [
@@ -16,7 +23,15 @@
 
 <svelte:head><title>{r.title}</title></svelte:head>
 
-<p><a href="/">← Übersicht</a></p>
+<div class="toolbar">
+  <a href="/">← Übersicht</a>
+  <div class="tools">
+    <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
+    <form method="POST" action="?/delete" use:enhance onsubmit={confirmDelete}>
+      <button class="btn danger" type="submit">Löschen</button>
+    </form>
+  </div>
+</div>
 
 <article class="recipe">
   <header class="rhead">
@@ -70,6 +85,13 @@
 </article>
 
 <style>
+  .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+  .tools { display: flex; align-items: center; gap: 0.5rem; }
+  .tools form { margin: 0; }
+  .btn { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: #4a4236; cursor: pointer; font: inherit; text-decoration: none; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.danger { color: #9b1c1c; }
+  .btn.danger:hover { border-color: #9b1c1c; background: #fde8e8; }
   .recipe { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; }
   .rhead { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
   .hero { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; flex-shrink: 0; }

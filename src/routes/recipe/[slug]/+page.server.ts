@@ -1,7 +1,8 @@
 import { prettyCategory, prettyDifficulty } from "$core/category.ts";
-import { getRecipeBySlug } from "$core/services/library.ts";
-import { error } from "@sveltejs/kit";
-import type { PageServerLoad } from "./$types";
+import { getRecipeBySlug, softDeleteRecipe } from "$core/services/library.ts";
+import { enqueueDelete } from "$core/services/sync-queue.ts";
+import { error, redirect } from "@sveltejs/kit";
+import type { Actions, PageServerLoad } from "./$types";
 
 /** "H:MM" oder reine Minuten → "1 Std. 30 Min." / "20 Min." */
 function formatTime(raw?: string): string | null {
@@ -46,4 +47,12 @@ export const load: PageServerLoad = ({ params }) => {
       notes: r.notes,
     },
   };
+};
+
+export const actions: Actions = {
+  delete: ({ params }) => {
+    const ref = softDeleteRecipe(params.slug);
+    if (ref) enqueueDelete(ref);
+    throw redirect(303, "/");
+  },
 };
