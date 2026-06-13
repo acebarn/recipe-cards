@@ -14,21 +14,23 @@ if (!apiKey) {
   process.exit(1);
 }
 const force = process.argv.includes("--force");
+// Verzögerung zwischen Calls, um das Gemini-RPM-Limit (Free-Tier) nicht zu reißen.
+const delayMs = Number(process.env.MAP_DELAY_MS) || 5000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const run = async () => {
   const recipes = listRecipes();
   let done = 0;
   let skipped = 0;
   let failed = 0;
+  let first = true;
   for (const r of recipes) {
-    if (r.stepIngredients && !force) {
+    if ((r.stepIngredients && !force) || !r.steps.length || !r.ingredients.length) {
       skipped++;
       continue;
     }
-    if (!r.steps.length || !r.ingredients.length) {
-      skipped++;
-      continue;
-    }
+    if (!first) await sleep(delayMs);
+    first = false;
     try {
       const mapping = await mapStepIngredients(toRecipe(r), { apiKey });
       setStepIngredients(r.slug, mapping);
@@ -36,8 +38,10 @@ const run = async () => {
       console.log(`✓ ${r.meta.title} (${mapping.length} Schritte, ${hits} Zuordnungen)`);
       done++;
     } catch (e) {
-      console.error(`✗ ${r.slug}: ${(e as Error).message}`);
+      const msg = (e as Error).message.slice(0, 80);
+      console.error(`✗ ${r.slug}: ${msg}`);
       failed++;
+      if (msg.includes("429")) await sleep(30000); // bei Rate-Limit länger warten
     }
   }
   console.log(`\nFertig: ${done} zugeordnet, ${skipped} übersprungen, ${failed} fehlgeschlagen.`);
