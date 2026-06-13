@@ -1,0 +1,88 @@
+<script lang="ts">
+  import { inlineMd } from "$lib/inline-md.ts";
+  import type { PageData } from "./$types";
+
+  let { data }: { data: PageData } = $props();
+  let r = $derived(data.recipe);
+
+  let timeChips = $derived(
+    [
+      ["Vorb.", r.times.prep],
+      ["Koch", r.times.cook],
+      ["Ruhe", r.times.rest],
+    ].filter(([, v]) => v) as [string, string][],
+  );
+</script>
+
+<svelte:head><title>{r.title}</title></svelte:head>
+
+<p><a href="/">← Übersicht</a></p>
+
+<article class="recipe">
+  <header class="rhead">
+    {#if r.image}
+      <img class="hero" src={`/images/${r.image}`} alt={r.title} />
+    {/if}
+    <div>
+      <h1>{r.title}</h1>
+      <div class="chips">
+        {#if r.category}<span class="chip">{r.category}</span>{/if}
+        {#if r.difficulty}<span class="chip">{r.difficulty}</span>{/if}
+        {#if r.servings}<span class="chip">{r.servings} Portion{r.servings === 1 ? "" : "en"}</span>{/if}
+        {#each timeChips as [label, val] (label)}<span class="chip">{label}: {val}</span>{/each}
+      </div>
+    </div>
+  </header>
+
+  <section class="cols">
+    <div class="ingredients">
+      <h2>Zutaten</h2>
+      {#each r.ingredients as sec (sec.name ?? "_")}
+        {#if sec.name}<h3>{sec.name}</h3>{/if}
+        <ul>
+          {#each sec.items as item (item)}<li>{item}</li>{/each}
+        </ul>
+      {/each}
+      {#if r.equipment.length}
+        <h3>Zubehör</h3>
+        <ul>{#each r.equipment as e (e)}<li>{e}</li>{/each}</ul>
+      {/if}
+    </div>
+
+    <div class="steps">
+      <h2>Zubereitung</h2>
+      <ol>
+        {#each r.steps as step, i (i)}<li>{@html inlineMd(step)}</li>{/each}
+      </ol>
+
+      {#if r.notes.length}
+        <h2>Hinweise</h2>
+        <ul class="notes">
+          {#each r.notes as note (note)}<li>{@html inlineMd(note)}</li>{/each}
+        </ul>
+      {/if}
+    </div>
+  </section>
+
+  {#if r.tags.length}
+    <p class="tags">{#each r.tags as t (t)}<span class="tag">#{t}</span>{/each}</p>
+  {/if}
+</article>
+
+<style>
+  .recipe { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; }
+  .rhead { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+  .hero { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; flex-shrink: 0; }
+  .rhead h1 { margin: 0 0 0.5rem; font-size: 1.5rem; }
+  .chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .chip { background: var(--chip-bg, #f0ece4); color: #5a5043; font-size: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 999px; }
+  .cols { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-top: 1.4rem; }
+  @media (min-width: 680px) { .cols { grid-template-columns: 1fr 1.4fr; } }
+  h2 { font-size: 1.1rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.2rem; }
+  h3 { font-size: 0.95rem; margin: 0.8rem 0 0.3rem; color: #4a4236; }
+  .steps ol { padding-left: 1.2rem; }
+  .steps li { margin-bottom: 0.6rem; line-height: 1.5; }
+  .notes { color: #5a5043; }
+  .tags { margin-top: 1.2rem; }
+  .tag { color: var(--muted); font-size: 0.85rem; margin-right: 0.5rem; }
+</style>

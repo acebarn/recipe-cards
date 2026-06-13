@@ -10,9 +10,16 @@ const authorization: Handle = async ({ event, resolve }) => {
   // Auth.js-Endpunkte (/auth/*) immer durchlassen.
   if (event.url.pathname.startsWith("/auth")) return resolve(event);
 
-  const session = await event.locals.auth();
-  const email = session?.user?.email ?? null;
-  const user = email ? getUserByEmail(email) : null;
+  // Dev-Bypass (nur lokal): RECIPE_DEV_USER=<email> umgeht den OAuth-Flow.
+  const devEmail = process.env.RECIPE_DEV_USER;
+  let user;
+  if (devEmail) {
+    user = getUserByEmail(devEmail);
+  } else {
+    const session = await event.locals.auth();
+    const email = session?.user?.email ?? null;
+    user = email ? getUserByEmail(email) : null;
+  }
   event.locals.user = user;
 
   const path = event.url.pathname;
