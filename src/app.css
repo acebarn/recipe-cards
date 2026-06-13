@@ -49,6 +49,29 @@ a {
   font-weight: 650;
 }
 
+.app-header .nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.92rem;
+}
+
+.app-header .nav a {
+  color: #fff;
+  opacity: 0.95;
+}
+
+.linkbtn {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
 main {
   max-width: 880px;
   margin: 0 auto;

@@ -24,6 +24,7 @@
     "node": ">=23.6"
   },
   "dependencies": {
+    "@auth/sveltekit": "^1.11.2",
     "better-sqlite3": "^12.10.0",
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0",
