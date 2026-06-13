@@ -165,10 +165,11 @@ const SCALE_STEP = 0.05;
 
 export function renderCard(
   recipe: Recipe,
-  options: { projectRoot: string; outDir: string; scale: number },
+  options: { projectRoot: string; outDir: string; scale: number; slug?: string },
 ): RenderResult {
   const { projectRoot, outDir, scale } = options;
-  const slug = slugify(recipe);
+  // Bevorzugt der explizit übergebene (gespeicherte) Slug; sonst aus dem Titel.
+  const slug = options.slug ?? slugify(recipe);
   // Wrapper & JSON müssen INNERHALB des Typst-Root liegen; die PDF darf irgendwohin.
   const buildDir = join(projectRoot, ".cli-build");
   mkdirSync(buildDir, { recursive: true });

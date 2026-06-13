@@ -6,6 +6,9 @@
   let { data }: { data: PageData } = $props();
   let r = $derived(data.recipe);
 
+  let scale = $state(1);
+  let pdfHref = $derived(`/recipe/${r.slug}/pdf${scale !== 1 ? `?scale=${scale}` : ""}`);
+
   const confirmDelete = (e: SubmitEvent) => {
     if (!confirm(`„${r.title}" wirklich löschen? (auch aus Google Drive beim nächsten Sync)`)) {
       e.preventDefault();
@@ -26,6 +29,8 @@
 <div class="toolbar">
   <a href="/">← Übersicht</a>
   <div class="tools">
+    <label class="scale">×<input type="number" min="0.25" max="20" step="0.25" bind:value={scale} /></label>
+    <a class="btn" href={pdfHref} target="_blank" rel="noopener">PDF</a>
     <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
     <form method="POST" action="?/delete" use:enhance onsubmit={confirmDelete}>
       <button class="btn danger" type="submit">Löschen</button>
@@ -87,6 +92,8 @@
 <style>
   .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
   .tools { display: flex; align-items: center; gap: 0.5rem; }
+  .scale { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--muted); font-size: 0.9rem; }
+  .scale input { width: 3.4rem; padding: 0.35rem 0.4rem; border: 1px solid var(--border); border-radius: 7px; font: inherit; }
   .tools form { margin: 0; }
   .btn { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: #4a4236; cursor: pointer; font: inherit; text-decoration: none; }
   .btn:hover { border-color: var(--accent); }
