@@ -4,10 +4,11 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { matchesFilter } from "../core/filter.ts";
 import { parseRecipe } from "../core/parse.ts";
+import { getProjectRoot } from "../core/paths.ts";
 import { renderCard } from "../core/render.ts";
 import { findRecipeFiles } from "../core/scan.ts";
 
-const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const PROJECT_ROOT = getProjectRoot(resolve(dirname(fileURLToPath(import.meta.url)), ".."));
 
 function printHelp(): void {
   console.log(`recipe-cards — A5-Rezeptkarten aus YAML-Rezepten erzeugen

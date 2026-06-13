@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// CLI: KI-Aquarell-Symbole pro Rezept via Pixazo FLUX.1 [schnell].
+// Die Generierung liegt in core/services/gen-image.ts; hier nur Argument-Parsing,
+// das Durchlaufen der Rezepte und das Caching unter assets/<slug>.<ext>.
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,88 +9,16 @@ import { parseArgs } from "node:util";
 import { loadDotEnv } from "../core/env.ts";
 import type { Recipe } from "../core/model.ts";
 import { parseRecipe } from "../core/parse.ts";
+import { getProjectRoot } from "../core/paths.ts";
 import { slugify } from "../core/render.ts";
 import { findRecipeFiles } from "../core/scan.ts";
+import {
+  DEFAULT_IMAGE_SIZE,
+  DEFAULT_IMAGE_STEPS,
+  generateRecipeImage,
+} from "../core/services/gen-image.ts";
 
-const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-// Pixazo FLUX.1 [schnell] — günstig (~$0,0012/Bild), synchroner Flow.
-const ENDPOINT = "https://gateway.pixazo.ai/flux-1-schnell/v1/getData";
-const DEFAULT_SIZE = 1024; // quadratisch fürs runde Badge
-const DEFAULT_STEPS = 4; // schnell-Default (max. 8)
-
-// Aquarell-Stil bewusst ZUERST (FLUX gewichtet frühe Tokens stärker) + explizite
-// "kein Foto"-Hinweise, damit das Motiv nicht ins Fotorealistische kippt.
-const STYLE_LEAD =
-  "Hand-painted watercolor illustration, loose visible brush strokes, soft pastel washes, " +
-  "watercolor paper texture, flat 2D storybook style";
-
-const STYLE_TAIL =
-  "single subject, close-up, centered, filling most of the frame, " +
-  "isolated on a plain white background, no plate, no cutlery, no background scenery, " +
-  "no text, no words, no letters, no watermark. " +
-  "Traditional watercolor painting — NOT a photo, not photorealistic, no realistic lighting, no 3D render";
-
-/**
- * Baut den englischen Bild-Prompt. Priorität:
- *   1. image_prompt  → englischer Bild-Prompt (überschreibt image_subject)
- *   2. image_subject → englische Gerichtsbeschreibung (empfohlen)
- *   3. title         → deutscher Titel als Notlösung (oft ungenau)
- */
-function buildPrompt(recipe: Recipe): string {
-  const subject = recipe.meta.image_prompt ?? recipe.meta.image_subject ?? recipe.meta.title;
-  return `${STYLE_LEAD} of ${subject}. ${STYLE_TAIL}.`;
-}
-
-/** Bestimmt die Dateiendung anhand der Magic Bytes (Pixazo liefert JPEG). */
-function extFor(buf: Buffer): "jpg" | "png" | "webp" {
-  if (buf[0] === 0xff && buf[1] === 0xd8) return "jpg";
-  if (buf[0] === 0x89 && buf[1] === 0x50) return "png";
-  if (buf.toString("ascii", 8, 12) === "WEBP") return "webp";
-  return "jpg";
-}
-
-/** Deterministischer Seed aus dem Slug, damit erneute Läufe dasselbe Bild liefern. */
-function seedFrom(slug: string): number {
-  let h = 0;
-  for (const ch of slug) h = (h * 31 + ch.charCodeAt(0)) % 2147483647;
-  return h;
-}
-
-async function generate(
-  prompt: string,
-  apiKey: string,
-  opts: { size: number; steps: number; seed: number },
-): Promise<Buffer> {
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-cache",
-      "Ocp-Apim-Subscription-Key": apiKey,
-    },
-    body: JSON.stringify({
-      prompt,
-      num_steps: opts.steps,
-      seed: opts.seed,
-      width: opts.size,
-      height: opts.size,
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} ${res.statusText}: ${(await res.text()).slice(0, 300)}`);
-  }
-
-  const data = (await res.json()) as { output?: string };
-  if (!data.output) {
-    throw new Error(`Keine Bild-URL in der Antwort: ${JSON.stringify(data).slice(0, 300)}`);
-  }
-
-  // Antwort liefert eine URL zum PNG → herunterladen.
-  const img = await fetch(data.output);
-  if (!img.ok) throw new Error(`Bild-Download fehlgeschlagen: HTTP ${img.status} (${data.output})`);
-  return Buffer.from(await img.arrayBuffer());
-}
+const PROJECT_ROOT = getProjectRoot(resolve(dirname(fileURLToPath(import.meta.url)), ".."));
 
 async function main(): Promise<void> {
   const { values, positionals } = parseArgs({
@@ -112,8 +43,8 @@ Voraussetzung:
 
 Optionen:
   --force          vorhandene Bilder neu erzeugen (sonst übersprungen)
-  --size <px>      Kantenlänge des quadratischen Bildes (Standard: ${DEFAULT_SIZE})
-  --steps <n>      Diffusions-Schritte 1–8 (Standard: ${DEFAULT_STEPS})
+  --size <px>      Kantenlänge des quadratischen Bildes (Standard: ${DEFAULT_IMAGE_SIZE})
+  --steps <n>      Diffusions-Schritte 1–8 (Standard: ${DEFAULT_IMAGE_STEPS})
   -h, --help       diese Hilfe`);
     return;
   }
@@ -127,8 +58,8 @@ Optionen:
     process.exit(1);
   }
 
-  const size = values.size ? Number(values.size) : DEFAULT_SIZE;
-  const steps = values.steps ? Math.min(8, Math.max(1, Number(values.steps))) : DEFAULT_STEPS;
+  const size = values.size ? Number(values.size) : DEFAULT_IMAGE_SIZE;
+  const steps = values.steps ? Math.min(8, Math.max(1, Number(values.steps))) : DEFAULT_IMAGE_STEPS;
   const recipesDir = resolve(positionals[0] ?? join(PROJECT_ROOT, "recipes"));
   const assetsDir = join(PROJECT_ROOT, "assets");
   mkdirSync(assetsDir, { recursive: true });
@@ -156,16 +87,14 @@ Optionen:
       continue;
     }
 
-    const prompt = buildPrompt(recipe);
     try {
-      const img = await generate(prompt, apiKey, { size, steps, seed: seedFrom(slug) });
+      const { buffer, ext } = await generateRecipeImage(recipe, slug, { apiKey, size, steps });
       // stale Dateien anderer Endung für diesen Slug entfernen
       for (const e of ["png", "jpg", "jpeg", "webp"]) {
         const p = join(assetsDir, `${slug}.${e}`);
         if (existsSync(p)) rmSync(p);
       }
-      const ext = extFor(img);
-      writeFileSync(join(assetsDir, `${slug}.${ext}`), img);
+      writeFileSync(join(assetsDir, `${slug}.${ext}`), buffer);
       console.log(`✓ ${recipe.meta.title} → assets/${slug}.${ext}`);
       created++;
     } catch (err) {
