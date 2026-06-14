@@ -18,10 +18,12 @@
   </a>
   {#if data.user && data.user.status === "approved"}
     <nav class="nav">
-      <a href="/restefest">🥕 Restefest</a>
-      <a href="/add">+ Hinzufügen</a>
-      {#if data.user.role === "owner"}<a href="/admin/members">Mitglieder</a>{/if}
-      <button class="linkbtn" onclick={() => signOut({ callbackUrl: "/login" })}>Abmelden</button>
+      <div class="nav-actions">
+        <a class="navbtn" href="/restefest">🥕 Restefest</a>
+        <a class="navbtn" href="/add">+ Hinzufügen</a>
+        {#if data.user.role === "owner"}<a class="navbtn" href="/admin/members">Mitglieder</a>{/if}
+      </div>
+      <button class="navbtn logout" onclick={() => signOut({ callbackUrl: "/login" })}>Abmelden</button>
     </nav>
   {/if}
 </header>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { flip } from "svelte/animate";
-  import { fade } from "svelte/transition";
+  import { fade, slide } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
   import type { PageData } from "./$types";
 
@@ -39,6 +39,11 @@
   let diff = $state<string | null>(null);
   let timeBucket = $state<"fast" | "mittel" | "lang" | null>(null);
   let view = $state<"grid" | "list">("grid");
+
+  // Filtergruppen sind anfangs eingeklappt, erst per Klick ausfahren
+  let open = $state({ cat: false, time: false, diff: false });
+  const toggle = (k: keyof typeof open) => (open[k] = !open[k]);
+  const TIME_LABEL = { fast: "⚡ <30 Min", mittel: "🕒 30–60 Min", lang: "🍲 >60 Min" } as const;
 
   // Ansicht pro Gerät merken
   if (browser) {
@@ -108,29 +113,50 @@
     </div>
   </div>
 
-  <div class="chips">
-    <span class="lbl">Kategorie</span>
-    <button class="chip" class:active={cat === null} onclick={() => (cat = null)}>Alle</button>
-    {#each categories as c (c)}
-      <button class="chip" class:active={cat === c} onclick={() => (cat = cat === c ? null : c)}>{c}</button>
-    {/each}
+  <div class="filtertabs">
+    <button class="ftab" style="--d: var(--red)" class:open={open.cat} class:set={!!cat} onclick={() => toggle("cat")}>
+      <span class="dot"></span>Kategorie{#if cat}<span class="val">{cat}</span>{/if}<span class="chev">{open.cat ? "▾" : "▸"}</span>
+    </button>
+    <button class="ftab" style="--d: var(--blue)" class:open={open.time} class:set={!!timeBucket} onclick={() => toggle("time")}>
+      <span class="dot"></span>Aufwand{#if timeBucket}<span class="val">{TIME_LABEL[timeBucket]}</span>{/if}<span class="chev">{open.time ? "▾" : "▸"}</span>
+    </button>
+    {#if difficulties.length}
+      <button class="ftab" style="--d: var(--yellow)" class:open={open.diff} class:set={!!diff} onclick={() => toggle("diff")}>
+        <span class="dot"></span>Schwierigkeit{#if diff}<span class="val">{diff}</span>{/if}<span class="chev">{open.diff ? "▾" : "▸"}</span>
+      </button>
+    {/if}
   </div>
 
-  <div class="chips">
-    <span class="lbl">Aufwand</span>
-    <button class="chip" class:active={timeBucket === null} onclick={() => (timeBucket = null)}>Alle</button>
-    <button class="chip" class:active={timeBucket === "fast"} onclick={() => (timeBucket = timeBucket === "fast" ? null : "fast")}>⚡ &lt;30 Min</button>
-    <button class="chip" class:active={timeBucket === "mittel"} onclick={() => (timeBucket = timeBucket === "mittel" ? null : "mittel")}>🕒 30–60 Min</button>
-    <button class="chip" class:active={timeBucket === "lang"} onclick={() => (timeBucket = timeBucket === "lang" ? null : "lang")}>🍲 &gt;60 Min</button>
-  </div>
+  {#if open.cat}
+    <div class="filtergroup" transition:slide={{ duration: 200 }}>
+      <div class="chips">
+        <button class="chip" class:active={cat === null} onclick={() => (cat = null)}>Alle</button>
+        {#each categories as c (c)}
+          <button class="chip" class:active={cat === c} onclick={() => (cat = cat === c ? null : c)}>{c}</button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
-  {#if difficulties.length}
-    <div class="chips">
-      <span class="lbl">Schwierigkeit</span>
-      <button class="chip" class:active={diff === null} onclick={() => (diff = null)}>Alle</button>
-      {#each difficulties as d (d)}
-        <button class="chip" class:active={diff === d} onclick={() => (diff = diff === d ? null : d)}>{d}</button>
-      {/each}
+  {#if open.time}
+    <div class="filtergroup" transition:slide={{ duration: 200 }}>
+      <div class="chips">
+        <button class="chip" class:active={timeBucket === null} onclick={() => (timeBucket = null)}>Alle</button>
+        <button class="chip" class:active={timeBucket === "fast"} onclick={() => (timeBucket = timeBucket === "fast" ? null : "fast")}>⚡ &lt;30 Min</button>
+        <button class="chip" class:active={timeBucket === "mittel"} onclick={() => (timeBucket = timeBucket === "mittel" ? null : "mittel")}>🕒 30–60 Min</button>
+        <button class="chip" class:active={timeBucket === "lang"} onclick={() => (timeBucket = timeBucket === "lang" ? null : "lang")}>🍲 &gt;60 Min</button>
+      </div>
+    </div>
+  {/if}
+
+  {#if open.diff && difficulties.length}
+    <div class="filtergroup" transition:slide={{ duration: 200 }}>
+      <div class="chips">
+        <button class="chip" class:active={diff === null} onclick={() => (diff = null)}>Alle</button>
+        {#each difficulties as d (d)}
+          <button class="chip" class:active={diff === d} onclick={() => (diff = diff === d ? null : d)}>{d}</button>
+        {/each}
+      </div>
     </div>
   {/if}
 </div>
@@ -258,20 +284,72 @@
     color: #fff;
   }
 
+  /* Filter-Tabs: farbig unterscheidbar, klappen Gruppen aus */
+  .filtertabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .ftab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.5rem;
+    padding: 0 0.85rem;
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    background: #fff;
+    box-shadow: 3px 3px 0 var(--ink);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .ftab .dot {
+    width: 13px;
+    height: 13px;
+    background: var(--d);
+    border: 2px solid var(--ink);
+    flex: none;
+  }
+  .ftab .chev {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .ftab .val {
+    text-transform: none;
+    font-weight: 600;
+    background: var(--d);
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    padding: 0.05rem 0.5rem;
+    font-size: 0.78rem;
+  }
+  .ftab.open {
+    box-shadow: 3px 3px 0 var(--d);
+    transform: translate(-1px, -1px);
+  }
+  .ftab.set {
+    background: var(--d);
+  }
+  .ftab.set .val {
+    background: #fff;
+  }
+
+  /* Ausgeklappte Gruppe: per Trennlinie klar abgegrenzt */
+  .filtergroup {
+    padding: 0.6rem 0.1rem 0.2rem;
+    border-top: 2px dashed var(--ink);
+  }
+
   .chips {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem;
-  }
-  .chips .lbl {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin-right: 0.2rem;
-    min-width: 5.4rem;
   }
   .chip {
     padding: 0.28rem 0.7rem;
