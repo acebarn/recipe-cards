@@ -115,4 +115,8 @@ CREATE TABLE audit_log (
 );
 `,
   },
+  {
+    id: "002_recipe_region",
+    sql: `ALTER TABLE recipes ADD COLUMN region TEXT;`,
+  },
 ];

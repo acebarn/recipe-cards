@@ -183,6 +183,7 @@
       {
         let chips = ()
         if data.category != none { chips.push(chip("Kategorie", data.category, rgb(theme.chipBg))) }
+        if data.at("region", default: none) != none { chips.push(chip("Region", data.region, rgb(theme.chipBg))) }
         if data.difficulty != none { chips.push(chip("Schwierigkeit", data.difficulty, rgb(theme.chipBg))) }
         if data.servings != none { chips.push(chip("Portionen", data.servings, rgb(theme.chipBg))) }
         for t in data.times { chips.push(chip(t.label, t.value, rgb(theme.chipBg))) }

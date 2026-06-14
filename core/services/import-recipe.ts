@@ -43,6 +43,7 @@ Regeln:
 - prep_time/cook_time/rest_time: als "H:MM" (z.B. 1:30) ODER als reine Minutenzahl. Nur angeben, wenn erkennbar.
 - servings: ganze Zahl (Portionen/Stück).
 - difficulty: genau eines von easy, medium, hard – oder leer.
+- region: Herkunft des Gerichts als deutsches Substantiv – ein Land (z.B. Italien, Japan, Mexiko), ein Kontinent oder eine Region (z.B. Levantinisch, Mediterran, Nordafrikanisch). Nur angeben, wenn sinnvoll erkennbar, sonst leer.
 - category: ein kurzes Schlagwort, bevorzugt eines von: grundwissen, kochen, backen, salate, saucen, desserts, getränke.
 - tags: 1-4 kurze Schlagwörter.
 - equipment: benötigte Geräte/Gefäße, je Eintrag eine Zeile.
@@ -68,6 +69,7 @@ servings:
 equipment:
   -
 difficulty:
+region:
 source_url:
 theme_color:
 image_subject:

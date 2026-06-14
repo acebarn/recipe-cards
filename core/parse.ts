@@ -32,6 +32,10 @@ function parseMeta(raw: Record<string, unknown>): RecipeMeta {
         : undefined,
     equipment: toStringArray(raw.equipment),
     difficulty: raw.difficulty != null ? String(raw.difficulty) : undefined,
+    region:
+      raw.region != null && String(raw.region).trim() !== ""
+        ? String(raw.region).trim()
+        : undefined,
     source_url: flattenStrings(raw.source_url),
     last_modified:
       raw.last_modified != null ? String(raw.last_modified) : undefined,

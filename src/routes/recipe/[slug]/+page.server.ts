@@ -1,4 +1,5 @@
 import { prettyCategory, prettyDifficulty } from "$core/category.ts";
+import { regionLabel } from "$core/region.ts";
 import { getProjectRoot } from "$core/paths.ts";
 import { themeFor } from "$core/theme.ts";
 import { getRecipeBySlug, softDeleteRecipe } from "$core/services/library.ts";
@@ -52,6 +53,7 @@ export const load: PageServerLoad = ({ params }) => {
       image: r.imageFilename ?? null,
       category: prettyCategory(m.category),
       difficulty: prettyDifficulty(m.difficulty),
+      region: regionLabel(m.region) || null,
       servings: m.servings ?? null,
       times: {
         prep: formatTime(m.prep_time),

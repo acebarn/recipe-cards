@@ -58,6 +58,7 @@
         <h1 class="title-block">{r.title}</h1>
         <div class="chips">
           {#if r.category}<span class="chip">{r.category}</span>{/if}
+          {#if r.region}<span class="chip">{r.region}</span>{/if}
           {#if r.difficulty}<span class="chip">{r.difficulty}</span>{/if}
           {#if scaledServings}<span class="chip">{scaledServings} Portion{scaledServings === "1" ? "" : "en"}</span>{/if}
           {#each timeChips as [label, val] (label)}<span class="chip">{label}: {val}</span>{/each}

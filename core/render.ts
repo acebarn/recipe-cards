@@ -97,6 +97,7 @@ function buildCardData(
       ? DIFFICULTY_LABEL[meta.difficulty.toLowerCase()] ?? meta.difficulty
       : null,
     category: meta.category ?? null,
+    region: meta.region ?? null,
     servings: servingsText,
     times,
     equipment: meta.equipment,

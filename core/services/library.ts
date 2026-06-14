@@ -55,7 +55,7 @@ export function buildSearchBlob(
 // ---------------- Mapping Row <-> StoredRecipe ----------------
 
 const SELECT_COLS = `
-  r.id, r.slug, r.category_dir, r.title, r.category, r.grouping, r.difficulty,
+  r.id, r.slug, r.category_dir, r.title, r.category, r.grouping, r.difficulty, r.region,
   r.servings, r.prep_time, r.cook_time, r.rest_time, r.theme_color,
   r.image_subject, r.image_prompt, r.tags_json, r.equipment_json, r.source_url_json,
   r.ingredients_json, r.steps_json, r.step_ingredients_json, r.notes_json,
@@ -70,6 +70,7 @@ interface Row {
   category: string | null;
   grouping: string | null;
   difficulty: string | null;
+  region: string | null;
   servings: number | null;
   prep_time: string | null;
   cook_time: string | null;
@@ -104,6 +105,7 @@ function rowToStored(row: Row): StoredRecipe {
     servings: row.servings ?? undefined,
     equipment: JSON.parse(row.equipment_json),
     difficulty: row.difficulty ?? undefined,
+    region: row.region ?? undefined,
     source_url: JSON.parse(row.source_url_json),
     last_modified: row.last_modified,
     theme_color: row.theme_color ?? undefined,
@@ -158,6 +160,7 @@ function metaColumns(input: RecipeInput, searchBlob: string, now: string) {
     category_dir: input.categoryDir ?? null,
     grouping: m.grouping ?? null,
     difficulty: m.difficulty ?? null,
+    region: m.region ?? null,
     servings: m.servings ?? null,
     prep_time: m.prep_time ?? null,
     cook_time: m.cook_time ?? null,
@@ -192,13 +195,13 @@ export function insertRecipe(input: RecipeInput): StoredRecipe {
   const info = db
     .prepare(
       `INSERT INTO recipes (
-        slug, title, category, category_dir, grouping, difficulty, servings,
+        slug, title, category, category_dir, grouping, difficulty, region, servings,
         prep_time, cook_time, rest_time, theme_color, image_subject, image_prompt,
         tags_json, equipment_json, source_url_json, ingredients_json, steps_json,
         step_ingredients_json, notes_json, markdown_body, search_blob,
         created_by, updated_by, created_at, last_modified
       ) VALUES (
-        @slug, @title, @category, @category_dir, @grouping, @difficulty, @servings,
+        @slug, @title, @category, @category_dir, @grouping, @difficulty, @region, @servings,
         @prep_time, @cook_time, @rest_time, @theme_color, @image_subject, @image_prompt,
         @tags_json, @equipment_json, @source_url_json, @ingredients_json, @steps_json,
         @step_ingredients_json, @notes_json, @markdown_body, @search_blob,
@@ -232,7 +235,7 @@ export function updateRecipe(
   db.prepare(
     `UPDATE recipes SET
        title=@title, category=@category, category_dir=@category_dir, grouping=@grouping,
-       difficulty=@difficulty, servings=@servings, prep_time=@prep_time, cook_time=@cook_time,
+       difficulty=@difficulty, region=@region, servings=@servings, prep_time=@prep_time, cook_time=@cook_time,
        rest_time=@rest_time, theme_color=@theme_color, image_subject=@image_subject,
        image_prompt=@image_prompt, tags_json=@tags_json, equipment_json=@equipment_json,
        source_url_json=@source_url_json, ingredients_json=@ingredients_json, steps_json=@steps_json,
@@ -367,6 +370,7 @@ export interface RecipeIndexEntry {
   title: string;
   category: string;
   difficulty: string;
+  region: string | null;
   totalMinutes: number | null;
   servings: number | null;
   tags: string[];
@@ -385,6 +389,7 @@ export function recipeIndex(): RecipeIndexEntry[] {
     title: r.meta.title,
     category: prettyCategory(r.meta.category),
     difficulty: prettyDifficulty(r.meta.difficulty),
+    region: r.meta.region ?? null,
     totalMinutes: totalMinutes(r.meta.prep_time, r.meta.cook_time, r.meta.rest_time),
     servings: r.meta.servings ?? null,
     tags: r.meta.tags ?? [],

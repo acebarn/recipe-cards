@@ -9,6 +9,8 @@ export interface RecipeMeta {
   servings?: number;
   equipment: string[];
   difficulty?: string;
+  /** Herkunft: Land, Kontinent oder Region (z.B. "Italien", "Levantinisch"). */
+  region?: string;
   source_url: string[];
   last_modified?: string;
   /** Optionale Grundfarbe als #hex. Wenn gesetzt, hat sie Vorrang vor der Bild-/Titel-Ableitung. */

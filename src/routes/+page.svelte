@@ -3,6 +3,7 @@
   import { flip } from "svelte/animate";
   import { fade, slide } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
+  import { regionEmoji } from "$core/region.ts";
   import type { PageData } from "./$types";
 
   // Out-Transition: Karte aus dem Layout-Fluss lösen (absolut an ihren
@@ -198,6 +199,7 @@
           <div class="body">
             <div class="title"><a href={`/recipe/${r.slug}`}>{r.title}</a></div>
             <div class="meta">
+              {#if regionEmoji(r.region)}<span class="m" title={r.region}>{regionEmoji(r.region)}</span>{/if}
               {#if r.category}<span class="cat">{r.category}</span>{/if}
               {#if r.totalMinutes}<span class="m">🕒 {fmtMin(r.totalMinutes)}</span>{/if}
             </div>
@@ -217,6 +219,7 @@
             {/if}
             <span class="ltitle">{r.title}</span>
             <span class="lmeta">
+              {#if regionEmoji(r.region)}<span class="tag" title={r.region}>{regionEmoji(r.region)}</span>{/if}
               {#if r.category}<span class="cat">{r.category}</span>{/if}
               {#if r.difficulty}<span class="tag">{r.difficulty}</span>{/if}
               {#if r.totalMinutes}<span class="tag">🕒 {fmtMin(r.totalMinutes)}</span>{/if}
