@@ -1,12 +1,47 @@
+/* ============================================================
+   Bauhaus-Design-System — abgestimmt auf die Rezeptkarte (Jost,
+   klare Formen, Primärfarben Rot/Blau/Gelb auf Creme, schwarze Linien).
+   ============================================================ */
+
+@font-face {
+  font-family: "Jost";
+  src: url("/fonts/Jost-400-Book.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Jost";
+  src: url("/fonts/Jost-500-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Jost";
+  src: url("/fonts/Jost-700-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
-  --accent: #b5651d;
-  --bg: #faf7f2;
-  --fg: #2b2820;
-  --muted: #6b6257;
-  --card: #fff;
-  --border: #e7e0d6;
-  --radius: 14px;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Bauhaus-Primärpalette */
+  --paper: #f4efe3;
+  --paper-2: #efe8d8;
+  --ink: #1a1a1a;
+  --red: #e0382c;
+  --blue: #2350a8;
+  --yellow: #f3c019;
+  --muted: #6f6a60;
+  --border: var(--ink);
+
+  /* Pro-Rezept-Akzent (Detailseite überschreibt via inline-style) */
+  --accent: var(--red);
+  --accent-soft: #f0d9d6;
+  --card: #fff; /* Kompat: Panels (Login/Pending/Admin) */
+
+  --radius: 3px;
+
+  font-family: "Jost", "Futura", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
 }
 
 * {
@@ -20,9 +55,15 @@ body {
 }
 
 body {
-  background: var(--bg);
-  color: #2b2820;
+  background-color: var(--paper);
+  /* dezentes Bauhaus-Raster + Halbtonpunkt-Hauch */
+  background-image:
+    radial-gradient(var(--ink) 0.6px, transparent 0.6px);
+  background-size: 22px 22px;
+  background-position: -11px -11px;
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
 a {
@@ -30,36 +71,65 @@ a {
   text-decoration: none;
 }
 
+h1,
+h2,
+h3 {
+  letter-spacing: 0.01em;
+}
+
+/* ---------------- Kopfzeile ---------------- */
 .app-header {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.9rem 1rem;
-  padding-top: max(0.9rem, env(safe-area-inset-top));
-  background: var(--accent);
+  padding: 0.85rem 1.1rem;
+  padding-top: max(0.85rem, env(safe-area-inset-top));
+  background: var(--ink);
   color: #fff;
+  /* Tri-Color-Stripe (Bauhaus-Signatur) als unterer Rand */
+  border-bottom: 6px solid transparent;
+  border-image: linear-gradient(
+      to right,
+      var(--red) 0 33.33%,
+      var(--blue) 33.33% 66.66%,
+      var(--yellow) 66.66% 100%
+    )
+    1;
 }
 
 .app-header h1 {
   font-size: 1.15rem;
   margin: 0;
-  font-weight: 650;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.app-header h1 a {
+  color: #fff;
 }
 
 .app-header .nav {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  font-size: 0.92rem;
+  gap: 1.1rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
-
 .app-header .nav a {
   color: #fff;
-  opacity: 0.95;
+  opacity: 0.92;
+  font-weight: 500;
+}
+.app-header .nav a:hover {
+  opacity: 1;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .linkbtn {
@@ -68,53 +138,169 @@ a {
   color: inherit;
   cursor: pointer;
   font: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   padding: 0;
   text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 main {
-  max-width: 880px;
+  max-width: 980px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 1.4rem 1.1rem 4rem;
 }
 
+/* ---------------- Bauhaus-Buttons ---------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.95rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    background 0.1s ease;
+}
+.btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--accent);
+}
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--ink);
+}
+.btn.danger {
+  color: var(--red);
+}
+.btn.danger:hover {
+  box-shadow: 4px 4px 0 var(--red);
+}
+
+/* ---------------- Rezept-Raster (Index) ---------------- */
 .recipe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 1.2rem;
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 0 0 2.2rem;
 }
 
 .recipe-card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  --c: var(--red); /* per-Karte gesetzt (Farbspiel) */
+  position: relative;
+  background: #fff;
+  border: 2.5px solid var(--ink);
   border-radius: var(--radius);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  overflow: visible;
+  box-shadow: 5px 5px 0 var(--c);
+  transition:
+    transform 0.13s ease,
+    box-shadow 0.13s ease;
 }
-
+.recipe-card:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 9px 9px 0 var(--c);
+}
+/* geometrischer Akzent: Kreis oben rechts, überlappend */
+.recipe-card::after {
+  content: "";
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 20px;
+  height: 20px;
+  background: var(--c);
+  border: 2.5px solid var(--ink);
+  border-radius: 50%;
+  z-index: 2;
+}
 .recipe-card .thumb {
+  display: block;
   aspect-ratio: 1;
   width: 100%;
   object-fit: cover;
-  background: #f0ece4;
+  background: var(--paper-2);
+  border-bottom: 2.5px solid var(--ink);
+  border-radius: var(--radius) var(--radius) 0 0;
 }
-
+.recipe-card .thumb.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--c);
+}
 .recipe-card .body {
-  padding: 0.6rem 0.7rem 0.75rem;
+  padding: 0.6rem 0.7rem 0.8rem;
 }
-
 .recipe-card .title {
+  font-weight: 700;
+  font-size: 0.98rem;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+.recipe-card .title a {
+  color: var(--ink);
+}
+.recipe-card .cat {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  font-size: 0.95rem;
-  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  background: var(--c);
+  padding: 0.1rem 0.5rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
 }
 
-.recipe-card .cat {
-  color: var(--muted);
-  font-size: 0.8rem;
-  margin-top: 0.2rem;
+/* ---------------- Bauhaus-Divider (Quadrat → Linie → Dreieck) ---------------- */
+.bauhaus-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 1.1rem 0;
+}
+.bauhaus-divider::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  background: var(--accent);
+  flex: none;
+}
+.bauhaus-divider::after {
+  content: "";
+  flex: none;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 10px solid var(--ink);
+}
+.bauhaus-divider .rule {
+  flex: 1;
+  height: 2px;
+  background: var(--accent);
 }

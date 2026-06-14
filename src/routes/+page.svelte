@@ -5,6 +5,10 @@
 
   type R = PageData["recipes"][number];
 
+  // Bauhaus-Primärfarben fürs Farbspiel (zyklisch pro Karte/Kategorie).
+  const PALETTE = ["var(--red)", "var(--blue)", "var(--yellow)"];
+  const colorAt = (i: number) => PALETTE[((i % 3) + 3) % 3];
+
   // Ohne Suche nach Kategorie gruppieren; mit Suche flache Trefferliste.
   let groups = $derived.by(() => {
     if (data.q) return null;
@@ -24,30 +28,32 @@
     type="search"
     name="q"
     value={data.q}
-    placeholder="Rezepte durchsuchen … (Titel, Zutaten, Schritte)"
+    placeholder="Rezepte durchsuchen …"
     autocomplete="off"
   />
-  <button type="submit">Suchen</button>
+  <button type="submit" class="btn primary">Suchen</button>
 </form>
 
 {#if data.q}
-  <p class="count">{data.recipes.length} Treffer für „{data.q}" · <a href="/">zurück</a></p>
+  <p class="count">{data.recipes.length} Treffer für „{data.q}" · <a href="/">← zurück</a></p>
   {#if data.recipes.length}
     {@render grid(data.recipes)}
   {:else}
     <p class="empty">Keine Rezepte gefunden.</p>
   {/if}
 {:else}
-  {#each groups ?? [] as [category, recipes] (category)}
-    <h2 class="cat-heading">{category}</h2>
+  {#each groups ?? [] as [category, recipes], gi (category)}
+    <h2 class="cat-heading" style={`--c: ${colorAt(gi)}`}>
+      <span class="mark"></span>{category}<span class="arrow">→</span>
+    </h2>
     {@render grid(recipes)}
   {/each}
 {/if}
 
 {#snippet grid(recipes: R[])}
   <ul class="recipe-grid">
-    {#each recipes as r (r.slug)}
-      <li class="recipe-card">
+    {#each recipes as r, i (r.slug)}
+      <li class="recipe-card" style={`--c: ${colorAt(i)}`}>
         <a href={`/recipe/${r.slug}`}>
           {#if r.image}
             <img class="thumb" src={`/images/${r.image}`} alt={r.title} loading="lazy" />
@@ -56,7 +62,7 @@
           {/if}
         </a>
         <div class="body">
-          <div class="title"><a href={`/recipe/${r.slug}`} style="color: inherit;">{r.title}</a></div>
+          <div class="title"><a href={`/recipe/${r.slug}`}>{r.title}</a></div>
           {#if r.category}<div class="cat">{r.category}</div>{/if}
         </div>
       </li>
@@ -65,11 +71,61 @@
 {/snippet}
 
 <style>
-  .search { display: flex; gap: 0.5rem; margin: 0.5rem 0 1.2rem; }
-  .search input { flex: 1; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 10px; font-size: 1rem; }
-  .search button { padding: 0.6rem 1rem; border: 0; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; }
-  .count { color: var(--muted); }
-  .empty { color: var(--muted); margin-top: 2rem; text-align: center; }
-  .cat-heading { text-transform: capitalize; font-size: 1.05rem; margin: 1.4rem 0 0.6rem; color: #4a4236; }
-  .thumb.placeholder { display: flex; align-items: center; justify-content: center; font-size: 2.4rem; color: #c9bfb0; font-weight: 700; }
+  .search {
+    display: flex;
+    gap: 0.6rem;
+    margin: 0.3rem 0 1.8rem;
+  }
+  .search input {
+    flex: 1;
+    padding: 0.65rem 0.85rem;
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    font: inherit;
+    font-size: 1rem;
+    background: #fff;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .search input:focus {
+    outline: none;
+    box-shadow: 3px 3px 0 var(--accent);
+  }
+  .search :global(.btn.primary) {
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+
+  .count {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .empty {
+    color: var(--muted);
+    margin-top: 3rem;
+    text-align: center;
+    font-size: 1.1rem;
+  }
+
+  .cat-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 2rem 0 1rem;
+    color: var(--ink);
+  }
+  .cat-heading .mark {
+    width: 16px;
+    height: 16px;
+    background: var(--c);
+    border: 2px solid var(--ink);
+    flex: none;
+  }
+  .cat-heading .arrow {
+    color: var(--c);
+    -webkit-text-stroke: 1px var(--ink);
+    font-weight: 700;
+  }
 </style>

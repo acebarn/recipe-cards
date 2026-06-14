@@ -67,7 +67,7 @@
 <svelte:head><title>Kochen: {data.title}</title></svelte:head>
 <svelte:window onkeydown={onKey} />
 
-<div class="cook">
+<div class="cook" style={`--accent:${data.accent};--note-bg:${data.noteBg}`}>
   <header class="cook-top">
     <a class="close" href={`/recipe/${data.slug}`} aria-label="Kochmodus schließen">✕</a>
     <div class="ttl">
@@ -119,26 +119,62 @@
 <style>
   .cook { max-width: 720px; margin: 0 auto; }
   .cook-top { display: flex; align-items: center; gap: 0.8rem; }
-  .close { font-size: 1.2rem; color: var(--muted); text-decoration: none; padding: 0.2rem 0.5rem; }
+  .close {
+    font-size: 1.1rem;
+    color: var(--ink);
+    text-decoration: none;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    flex: none;
+  }
   .ttl { display: flex; flex-direction: column; flex: 1; line-height: 1.2; }
-  .ttl .sub { color: var(--muted); font-size: 0.85rem; }
-  .scale { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--muted); font-size: 0.9rem; }
-  .scale input { width: 3.4rem; padding: 0.35rem 0.4rem; border: 1px solid var(--border); border-radius: 7px; font: inherit; }
-  .progress { height: 6px; background: var(--border); border-radius: 999px; margin: 0.7rem 0 1.2rem; overflow: hidden; }
-  .progress .bar { height: 100%; background: var(--accent); transition: width 0.2s; }
-  .stage { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; min-height: 40vh; }
-  .step-no { color: var(--accent); font-weight: 700; margin: 0 0 0.5rem; }
-  .step-text { font-size: 1.3rem; line-height: 1.6; }
-  .needed { margin-top: 1.4rem; background: var(--note-bg, #f6f1e7); border-radius: 12px; padding: 0.8rem 1rem; }
-  .needed h3 { margin: 0 0 0.4rem; font-size: 0.95rem; }
-  .needed ul { margin: 0; padding-left: 1.1rem; }
-  .needed li { margin: 0.15rem 0; }
-  .needed li.tool { list-style: none; margin-left: -1.1rem; }
-  .toggle { margin-top: 1rem; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; text-decoration: underline; font: inherit; }
-  .all { margin-top: 0.6rem; color: #5a5043; }
-  .all h4 { margin: 0.6rem 0 0.2rem; }
-  .cook-nav { position: sticky; bottom: 0; display: flex; gap: 0.8rem; padding: 1rem 0; background: linear-gradient(transparent, var(--bg) 30%); }
-  .cook-nav button, .cook-nav a { flex: 1; text-align: center; padding: 0.9rem; border-radius: 12px; border: 1px solid var(--border); background: #fff; font: inherit; cursor: pointer; text-decoration: none; color: #4a4236; }
-  .cook-nav .primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .cook-nav button:disabled { opacity: 0.4; cursor: default; }
+  .ttl strong { text-transform: uppercase; letter-spacing: 0.03em; }
+  .ttl .sub { color: var(--muted); font-size: 0.85rem; font-weight: 500; }
+  .scale { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--muted); font-weight: 600; }
+  .scale input { width: 3.4rem; padding: 0.35rem 0.4rem; border: 2px solid var(--ink); border-radius: var(--radius); font: inherit; background: #fff; }
+
+  .progress { height: 10px; background: #fff; border: 2px solid var(--ink); border-radius: 999px; margin: 0.8rem 0 1.3rem; overflow: hidden; }
+  .progress .bar { height: 100%; background: var(--accent); transition: width 0.25s ease; }
+
+  .stage { background: #fff; border: 3px solid var(--ink); border-radius: var(--radius); padding: 1.5rem; min-height: 42vh; box-shadow: 7px 7px 0 var(--accent); }
+  .step-no { color: #fff; background: var(--accent); display: inline-block; padding: 0.15rem 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.8rem; font-size: 0.85rem; }
+  .step-text { font-size: 1.35rem; line-height: 1.6; }
+
+  .needed { margin-top: 1.5rem; background: var(--note-bg, #f6f1e7); border: 2px solid var(--ink); border-radius: var(--radius); padding: 0.9rem 1.1rem; }
+  .needed h3 { margin: 0 0 0.5rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .needed ul { margin: 0; padding: 0; list-style: none; }
+  .needed li { position: relative; padding-left: 1.1rem; margin: 0.25rem 0; }
+  .needed li::before { content: ""; position: absolute; left: 0; top: 0.5em; width: 8px; height: 8px; background: var(--accent); }
+  .needed li.tool::before { display: none; }
+  .needed li.tool { padding-left: 0; }
+
+  .toggle { margin-top: 1.1rem; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; font: inherit; font-weight: 600; }
+  .all { margin-top: 0.6rem; color: #4a4236; }
+  .all h4 { margin: 0.7rem 0 0.2rem; }
+  .all ul { margin: 0; padding-left: 1.1rem; }
+
+  .cook-nav { position: sticky; bottom: 0; display: flex; gap: 0.8rem; padding: 1rem 0; background: linear-gradient(transparent, var(--paper) 45%); }
+  .cook-nav button, .cook-nav a {
+    flex: 1;
+    text-align: center;
+    padding: 0.95rem;
+    border-radius: var(--radius);
+    border: 2.5px solid var(--ink);
+    background: #fff;
+    font: inherit;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .cook-nav .primary { background: var(--accent); color: #fff; }
+  .cook-nav button:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
 </style>
