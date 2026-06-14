@@ -18,6 +18,7 @@
   </a>
   {#if data.user && data.user.status === "approved"}
     <nav class="nav">
+      <a href="/restefest">🥕 Restefest</a>
       <a href="/add">+ Hinzufügen</a>
       {#if data.user.role === "owner"}<a href="/admin/members">Mitglieder</a>{/if}
       <button class="linkbtn" onclick={() => signOut({ callbackUrl: "/login" })}>Abmelden</button>
