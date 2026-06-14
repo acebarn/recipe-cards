@@ -2,9 +2,9 @@
   // Dicker Mengen-Stepper (− ×N +) im Bauhaus-Stil, mobil-tauglich.
   let {
     value = $bindable(1),
-    min = 0.25,
+    min = 0.5,
     max = 20,
-    step = 0.25,
+    step = 0.5,
   }: { value?: number; min?: number; max?: number; step?: number } = $props();
 
   const fmt = (n: number) => (Number.isInteger(n) ? String(n) : String(n).replace(".", ","));
