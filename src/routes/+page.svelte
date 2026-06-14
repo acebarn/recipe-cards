@@ -368,6 +368,7 @@
     letter-spacing: 0.01em;
     flex: 1;
     min-width: 0;
+    overflow-wrap: anywhere;
   }
   .lmeta {
     display: flex;
@@ -392,9 +393,12 @@
     font-weight: 600;
   }
   @media (max-width: 520px) {
-    .ltitle {
+    .recipe-list a {
+      flex-wrap: wrap;
+    }
+    /* Meta-Tags brechen unter Bild + Titel in eine eigene Zeile um */
+    .lmeta {
       flex: 1 1 100%;
-      order: 2;
     }
   }
 
