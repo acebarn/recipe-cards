@@ -102,7 +102,7 @@
   };
 </script>
 
-<svelte:head><title>Rezepte</title></svelte:head>
+<svelte:head><title>SCHMACKOFATZ</title></svelte:head>
 
 <div class="bar">
   <div class="searchrow">

@@ -17,7 +17,7 @@
       <rect x="35" y="38" width="17" height="17" fill="#2350a8" />
       <rect x="11" y="46" width="18" height="6" rx="3" fill="#fff" />
     </svg>
-    <span class="wordmark">Rezepte</span>
+    <span class="wordmark">SCHMACKOFATZ</span>
   </a>
   {#if data.user && data.user.status === "approved"}
     <button
