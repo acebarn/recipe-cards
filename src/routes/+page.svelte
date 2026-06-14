@@ -1,17 +1,60 @@
 <script lang="ts">
+  import { browser } from "$app/environment";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
-
   type R = PageData["recipes"][number];
 
-  // Bauhaus-Primärfarben fürs Farbspiel (zyklisch pro Karte/Kategorie).
   const PALETTE = ["var(--red)", "var(--blue)", "var(--yellow)"];
   const colorAt = (i: number) => PALETTE[((i % 3) + 3) % 3];
+  const fmtMin = (m: number | null) =>
+    m == null ? "" : m < 60 ? `${m} Min` : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")} Std`;
 
-  // Ohne Suche nach Kategorie gruppieren; mit Suche flache Trefferliste.
+  // ---- Filter-/Ansichts-State ----
+  let query = $state("");
+  let cat = $state<string | null>(null);
+  let diff = $state<string | null>(null);
+  let timeBucket = $state<"fast" | "mittel" | "lang" | null>(null);
+  let view = $state<"grid" | "list">("grid");
+
+  // Ansicht pro Gerät merken
+  if (browser) {
+    const v = localStorage.getItem("recipeView");
+    if (v === "list" || v === "grid") view = v;
+  }
+  $effect(() => {
+    if (browser) localStorage.setItem("recipeView", view);
+  });
+
+  // Chip-Optionen aus den Daten
+  let categories = $derived([...new Set(data.recipes.map((r) => r.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de")));
+  let difficulties = $derived(
+    ["Einfach", "Mittel", "Schwer"].filter((d) => data.recipes.some((r) => r.difficulty === d)),
+  );
+
+  const timeOk = (r: R) => {
+    if (!timeBucket) return true;
+    const t = r.totalMinutes;
+    if (t == null) return false;
+    if (timeBucket === "fast") return t < 30;
+    if (timeBucket === "mittel") return t >= 30 && t <= 60;
+    return t > 60;
+  };
+  let tokens = $derived(query.toLowerCase().split(/\s+/).filter(Boolean));
+
+  let filtering = $derived(!!(tokens.length || cat || diff || timeBucket));
+  let filtered = $derived(
+    data.recipes.filter(
+      (r) =>
+        (!cat || r.category === cat) &&
+        (!diff || r.difficulty === diff) &&
+        timeOk(r) &&
+        tokens.every((t) => r.search.includes(t)),
+    ),
+  );
+  let flat = $derived([...filtered].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  let newest = $derived([...data.recipes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6));
   let groups = $derived.by(() => {
-    if (data.q) return null;
     const map = new Map<string, R[]>();
     for (const r of data.recipes) {
       const key = r.category || "Sonstige";
@@ -19,64 +62,126 @@
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "de"));
   });
+
+  const reset = () => {
+    query = "";
+    cat = null;
+    diff = null;
+    timeBucket = null;
+  };
 </script>
 
 <svelte:head><title>Rezepte</title></svelte:head>
 
-<form method="GET" class="search">
-  <input
-    type="search"
-    name="q"
-    value={data.q}
-    placeholder="Rezepte durchsuchen …"
-    autocomplete="off"
-  />
-  <button type="submit" class="btn primary">Suchen</button>
-</form>
+<div class="bar">
+  <div class="searchrow">
+    <input class="search" type="search" bind:value={query} placeholder="Suchen … (Titel, Zutaten, Schritte)" autocomplete="off" />
+    <div class="viewtoggle" role="group" aria-label="Ansicht">
+      <button class:active={view === "grid"} onclick={() => (view = "grid")} aria-label="Kacheln" title="Kacheln">▦</button>
+      <button class:active={view === "list"} onclick={() => (view = "list")} aria-label="Liste" title="Liste">☰</button>
+    </div>
+  </div>
 
-{#if data.q}
-  <p class="count">{data.recipes.length} Treffer für „{data.q}" · <a href="/">← zurück</a></p>
-  {#if data.recipes.length}
-    {@render grid(data.recipes)}
+  <div class="chips">
+    <span class="lbl">Kategorie</span>
+    <button class="chip" class:active={cat === null} onclick={() => (cat = null)}>Alle</button>
+    {#each categories as c (c)}
+      <button class="chip" class:active={cat === c} onclick={() => (cat = cat === c ? null : c)}>{c}</button>
+    {/each}
+  </div>
+
+  <div class="chips">
+    <span class="lbl">Aufwand</span>
+    <button class="chip" class:active={timeBucket === null} onclick={() => (timeBucket = null)}>Alle</button>
+    <button class="chip" class:active={timeBucket === "fast"} onclick={() => (timeBucket = timeBucket === "fast" ? null : "fast")}>⚡ &lt;30 Min</button>
+    <button class="chip" class:active={timeBucket === "mittel"} onclick={() => (timeBucket = timeBucket === "mittel" ? null : "mittel")}>🕒 30–60 Min</button>
+    <button class="chip" class:active={timeBucket === "lang"} onclick={() => (timeBucket = timeBucket === "lang" ? null : "lang")}>🍲 &gt;60 Min</button>
+  </div>
+
+  {#if difficulties.length}
+    <div class="chips">
+      <span class="lbl">Schwierigkeit</span>
+      <button class="chip" class:active={diff === null} onclick={() => (diff = null)}>Alle</button>
+      {#each difficulties as d (d)}
+        <button class="chip" class:active={diff === d} onclick={() => (diff = diff === d ? null : d)}>{d}</button>
+      {/each}
+    </div>
+  {/if}
+</div>
+
+{#if filtering}
+  <p class="count">{flat.length} {flat.length === 1 ? "Treffer" : "Treffer"} · <button class="linkbtn" onclick={reset}>zurücksetzen</button></p>
+  {#if flat.length}
+    {@render items(flat)}
   {:else}
     <p class="empty">Keine Rezepte gefunden.</p>
   {/if}
 {:else}
-  {#each groups ?? [] as [category, recipes], gi (category)}
-    <h2 class="cat-heading" style={`--c: ${colorAt(gi)}`}>
-      <span class="mark"></span>{category}<span class="arrow">→</span>
-    </h2>
-    {@render grid(recipes)}
+  <h2 class="cat-heading" style={`--c: ${colorAt(0)}`}><span class="mark"></span>Neu<span class="arrow">→</span></h2>
+  {@render items(newest)}
+  {#each groups as [category, recipes], gi (category)}
+    <h2 class="cat-heading" style={`--c: ${colorAt(gi + 1)}`}><span class="mark"></span>{category}<span class="arrow">→</span></h2>
+    {@render items(recipes)}
   {/each}
 {/if}
 
-{#snippet grid(recipes: R[])}
-  <ul class="recipe-grid">
-    {#each recipes as r, i (r.slug)}
-      <li class="recipe-card" style={`--c: ${colorAt(i)}`}>
-        <a href={`/recipe/${r.slug}`}>
-          {#if r.image}
-            <img class="thumb" src={`/images/${r.image}`} alt={r.title} loading="lazy" />
-          {:else}
-            <div class="thumb placeholder">{r.title.slice(0, 1)}</div>
-          {/if}
-        </a>
-        <div class="body">
-          <div class="title"><a href={`/recipe/${r.slug}`}>{r.title}</a></div>
-          {#if r.category}<div class="cat">{r.category}</div>{/if}
-        </div>
-      </li>
-    {/each}
-  </ul>
+{#snippet items(list: R[])}
+  {#if view === "grid"}
+    <ul class="recipe-grid">
+      {#each list as r, i (r.slug)}
+        <li class="recipe-card" style={`--c: ${colorAt(i)}`}>
+          <a href={`/recipe/${r.slug}`}>
+            {#if r.image}
+              <img class="thumb" src={`/images/${r.image}`} alt={r.title} loading="lazy" />
+            {:else}
+              <div class="thumb placeholder">{r.title.slice(0, 1)}</div>
+            {/if}
+          </a>
+          <div class="body">
+            <div class="title"><a href={`/recipe/${r.slug}`}>{r.title}</a></div>
+            <div class="meta">
+              {#if r.category}<span class="cat">{r.category}</span>{/if}
+              {#if r.totalMinutes}<span class="m">🕒 {fmtMin(r.totalMinutes)}</span>{/if}
+            </div>
+          </div>
+        </li>
+      {/each}
+    </ul>
+  {:else}
+    <ul class="recipe-list">
+      {#each list as r, i (r.slug)}
+        <li style={`--c: ${colorAt(i)}`}>
+          <a href={`/recipe/${r.slug}`}>
+            {#if r.image}
+              <img class="lthumb" src={`/images/${r.image}`} alt="" loading="lazy" />
+            {:else}
+              <span class="lthumb placeholder">{r.title.slice(0, 1)}</span>
+            {/if}
+            <span class="ltitle">{r.title}</span>
+            <span class="lmeta">
+              {#if r.category}<span class="cat">{r.category}</span>{/if}
+              {#if r.difficulty}<span class="tag">{r.difficulty}</span>{/if}
+              {#if r.totalMinutes}<span class="tag">🕒 {fmtMin(r.totalMinutes)}</span>{/if}
+            </span>
+          </a>
+        </li>
+      {/each}
+    </ul>
+  {/if}
 {/snippet}
 
 <style>
-  .search {
+  .bar {
+    margin: 0.2rem 0 1.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .searchrow {
     display: flex;
     gap: 0.6rem;
-    margin: 0.3rem 0 1.8rem;
   }
-  .search input {
+  .search {
     flex: 1;
     padding: 0.65rem 0.85rem;
     border: 2.5px solid var(--ink);
@@ -86,12 +191,63 @@
     background: #fff;
     box-shadow: 3px 3px 0 var(--ink);
   }
-  .search input:focus {
+  .search:focus {
     outline: none;
     box-shadow: 3px 3px 0 var(--accent);
   }
-  .search :global(.btn.primary) {
+  .viewtoggle {
+    display: inline-flex;
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
     box-shadow: 3px 3px 0 var(--ink);
+    overflow: hidden;
+    flex: none;
+  }
+  .viewtoggle button {
+    width: 2.6rem;
+    border: 0;
+    background: #fff;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .viewtoggle button + button {
+    border-left: 2.5px solid var(--ink);
+  }
+  .viewtoggle button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .chips .lbl {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-right: 0.2rem;
+    min-width: 5.4rem;
+  }
+  .chip {
+    padding: 0.28rem 0.7rem;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: #fff;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--ink);
+    color: #fff;
   }
 
   .count {
@@ -100,9 +256,108 @@
   }
   .empty {
     color: var(--muted);
-    margin-top: 3rem;
+    margin-top: 2.5rem;
     text-align: center;
     font-size: 1.1rem;
+  }
+
+  /* Karten-Meta (Grid) */
+  .recipe-card .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.45rem;
+  }
+  .recipe-card .meta .m {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* Listenansicht */
+  .recipe-list {
+    list-style: none;
+    margin: 0 0 2.2rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .recipe-list li {
+    --c: var(--red);
+    background: #fff;
+    border: 2.5px solid var(--ink);
+    border-left-width: 10px;
+    border-left-color: var(--c);
+    border-radius: var(--radius);
+    box-shadow: 3px 3px 0 var(--ink);
+    transition:
+      transform 0.1s,
+      box-shadow 0.1s;
+  }
+  .recipe-list li:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 var(--c);
+  }
+  .recipe-list a {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.5rem 0.8rem;
+    color: var(--ink);
+  }
+  .lthumb {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    flex: none;
+  }
+  .lthumb.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--c);
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.3rem;
+  }
+  .ltitle {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    flex: 1;
+    min-width: 0;
+  }
+  .lmeta {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    flex-wrap: wrap;
+    flex: none;
+  }
+  .lmeta .cat {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--c);
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    padding: 0.08rem 0.5rem;
+  }
+  .lmeta .tag {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  @media (max-width: 520px) {
+    .ltitle {
+      flex: 1 1 100%;
+      order: 2;
+    }
   }
 
   .cat-heading {

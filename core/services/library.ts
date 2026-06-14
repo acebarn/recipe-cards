@@ -1,7 +1,9 @@
 // Bibliotheks-CRUD über das Recipe-Modell auf SQLite.
 // Hält die FTS5-Tabelle (recipes_fts) synchron und denormalisiert search_blob.
-import { prettyCategory } from "../category.ts";
+import { prettyCategory, prettyDifficulty } from "../category.ts";
+import { flattenIngredients } from "../ingredients.ts";
 import type { IngredientSection, Recipe, RecipeMeta } from "../model.ts";
+import { totalMinutes } from "../time.ts";
 import { getDb } from "./db.ts";
 
 export interface StoredRecipe {
@@ -358,6 +360,39 @@ export function uniqueSlug(base: string): string {
   let i = 2;
   while (taken.get(`${base}-${i}`)) i++;
   return `${base}-${i}`;
+}
+
+export interface RecipeIndexEntry {
+  slug: string;
+  title: string;
+  category: string;
+  difficulty: string;
+  totalMinutes: number | null;
+  servings: number | null;
+  tags: string[];
+  image: string | null;
+  createdAt: string;
+  /** Zutaten als kleingeschriebener Text (für Restefest-Matching). */
+  ingredients: string;
+  /** Denormalisierter Suchtext (Titel/Kategorie/Tags/Zutaten/Schritte/Hinweise). */
+  search: string;
+}
+
+/** Kompakter Client-Index aller aktiven Rezepte (für Startseite + Restefest). */
+export function recipeIndex(): RecipeIndexEntry[] {
+  return listRecipes().map((r) => ({
+    slug: r.slug,
+    title: r.meta.title,
+    category: prettyCategory(r.meta.category),
+    difficulty: prettyDifficulty(r.meta.difficulty),
+    totalMinutes: totalMinutes(r.meta.prep_time, r.meta.cook_time, r.meta.rest_time),
+    servings: r.meta.servings ?? null,
+    tags: r.meta.tags ?? [],
+    image: r.imageFilename ?? null,
+    createdAt: r.createdAt,
+    ingredients: flattenIngredients(r.ingredients).join("\n").toLowerCase(),
+    search: buildSearchBlob(r.meta, r.ingredients, r.steps, r.notes),
+  }));
 }
 
 /** Volltextsuche über FTS5. Leere Anfrage → alle (wie listRecipes). */
