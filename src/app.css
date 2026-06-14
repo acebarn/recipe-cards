@@ -169,6 +169,24 @@ h3 {
   border-color: var(--red);
 }
 
+/* Burger nur mobil sichtbar */
+.app-header .burger {
+  display: none;
+  margin-left: auto;
+  width: 2.6rem;
+  height: 2.6rem;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius);
+  background: transparent;
+  color: #fff;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+}
+
 @media (max-width: 560px) {
   .app-header {
     gap: 0.5rem 0.7rem;
@@ -180,17 +198,38 @@ h3 {
     width: 26px;
     height: 26px;
   }
-  /* Nav nimmt eigene Zeile, Aktionen links, Abmelden ganz rechts abgesetzt */
+  .app-header .burger {
+    display: inline-flex;
+  }
+  /* Nav als ausfahrendes Dropdown auf eigener, voller Zeile */
   .app-header .nav {
+    display: none;
     width: 100%;
     margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
     gap: 0.5rem;
   }
+  .app-header .nav.open {
+    display: flex;
+  }
   .app-header .nav-actions {
-    flex: 1;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .app-header .navbtn {
+    min-height: 2.7rem;
+    justify-content: center;
+    font-size: 0.9rem;
+  }
+  /* Abmelden klar getrennt: eigener Block mit deutlichem Abstand */
+  .app-header .nav-actions {
+    padding-bottom: 0.6rem;
+    border-bottom: 2px dashed rgba(255, 255, 255, 0.3);
   }
   .app-header .navbtn.logout {
-    margin-left: auto;
+    margin-top: 0.3rem;
   }
 }
 
