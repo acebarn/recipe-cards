@@ -33,6 +33,7 @@ import {
   updateRecipe,
 } from "../core/services/library.ts";
 import { queueStepMapping } from "../core/services/step-map.ts";
+import { fetchReelCaption, isInstagramUrl } from "../core/services/reel.ts";
 import { enqueueDelete, enqueueUpsert } from "../core/services/sync-queue.ts";
 import { ensureTelegramUser } from "../core/services/users.ts";
 
@@ -63,7 +64,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const WELCOME =
   "👋 Schick mir einfach:\n" +
   "• ein 📸 Foto einer Rezeptseite (am besten als Datei für beste Qualität),\n" +
-  "• einen 🔗 Rezept-Link, oder\n" +
+  "• einen 🔗 Rezept-Link,\n" +
+  "• 🎬 einen Instagram-Reel-Link (Rezept in der Caption), oder\n" +
   "• 📝 Rezepttext.\n\n" +
   "Ich erstelle daraus eine A5-Rezeptkarte (PDF), lege das Rezept in der Bibliothek ab " +
   "(erscheint sofort im Web) und schicke dir die Karte zurück.\n" +
@@ -134,7 +136,14 @@ function renderPdf(slug: string): string {
 /** Eingabe → Gemini → Rezept in der DB anlegen (+ Bild, Mapping, Drive-Upsert) → PDF. */
 async function addRecipe(inputArg: string, createdBy: number): Promise<{ slug: string; title: string; pdfPath: string }> {
   if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY fehlt – Import nicht möglich.");
-  const input = await resolveInput([inputArg]);
+  let input: Input | null;
+  if (isInstagramUrl(inputArg)) {
+    // Instagram-Reel: Caption holen → wie Text behandeln.
+    const caption = await fetchReelCaption(inputArg);
+    input = { mode: "text", text: caption, sourceUrl: inputArg, label: `Reel ${inputArg}` };
+  } else {
+    input = await resolveInput([inputArg]);
+  }
   if (!input) throw new Error("Keine verwertbare Eingabe erkannt.");
   const markdown = await importRecipeMarkdown(input, { apiKey: GEMINI_KEY });
   const recipe = parseRecipeFromString(markdown, input.label);

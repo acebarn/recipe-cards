@@ -4,7 +4,7 @@
 
   let { form }: { form: ActionData } = $props();
 
-  type Tab = "link" | "text" | "photo";
+  type Tab = "link" | "text" | "photo" | "reel";
   let tab = $state<Tab>("link");
   let busy = $state(false);
 
@@ -24,6 +24,7 @@
 
 <div class="tabs">
   <button class:active={tab === "link"} onclick={() => (tab = "link")}>🔗 Link</button>
+  <button class:active={tab === "reel"} onclick={() => (tab = "reel")}>🎬 Reel</button>
   <button class:active={tab === "photo"} onclick={() => (tab = "photo")}>📷 Foto</button>
   <button class:active={tab === "text"} onclick={() => (tab = "text")}>📝 Text</button>
 </div>
@@ -37,6 +38,12 @@
     <button type="submit" class="btn primary" disabled={busy}>Importieren</button>
   </form>
   <p class="hint">Die Webseite wird geladen und das Rezept per Gemini extrahiert.</p>
+{:else if tab === "reel"}
+  <form method="POST" action="?/reel" use:enhance={submit}>
+    <input type="url" name="url" placeholder="https://www.instagram.com/reel/…" required />
+    <button type="submit" class="btn primary" disabled={busy}>Importieren</button>
+  </form>
+  <p class="hint">Holt die Caption des Reels und extrahiert daraus das Rezept. Funktioniert, wenn das Rezept in der Bildunterschrift steht (sonst Text kopieren).</p>
 {:else if tab === "photo"}
   <form method="POST" action="?/photo" enctype="multipart/form-data" use:enhance={submit}>
     <input type="file" name="photos" accept="image/*,.heic,.heif" multiple required />

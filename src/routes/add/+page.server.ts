@@ -12,6 +12,7 @@ import {
   type Input,
 } from "$core/services/import-recipe.ts";
 import { queueImageGeneration } from "$core/services/image-store.ts";
+import { fetchReelCaption, isInstagramUrl } from "$core/services/reel.ts";
 import { queueStepMapping } from "$core/services/step-map.ts";
 import { enqueueUpsert } from "$core/services/sync-queue.ts";
 import { fail, redirect } from "@sveltejs/kit";
@@ -51,6 +52,19 @@ export const actions: Actions = {
       slug = await createFromInput({ mode: "text", text, sourceUrl: url, label: url }, locals.user?.id);
     } catch (e) {
       return fail(400, { tab: "link", error: (e as Error).message });
+    }
+    throw redirect(303, `/recipe/${slug}`);
+  },
+
+  reel: async ({ request, locals }) => {
+    const url = String((await request.formData()).get("url") ?? "").trim();
+    if (!isInstagramUrl(url)) return fail(400, { tab: "reel", error: "Bitte einen Instagram-Reel-Link eingeben." });
+    let slug: string;
+    try {
+      const caption = await fetchReelCaption(url);
+      slug = await createFromInput({ mode: "text", text: caption, sourceUrl: url, label: `Reel ${url}` }, locals.user?.id);
+    } catch (e) {
+      return fail(400, { tab: "reel", error: (e as Error).message });
     }
     throw redirect(303, `/recipe/${slug}`);
   },

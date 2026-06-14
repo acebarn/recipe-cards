@@ -26,6 +26,11 @@ RUN curl -fsSL "https://github.com/typst/typst/releases/download/${TYPST_VERSION
  && rm -rf /tmp/typst* \
  && typst --version
 
+# yt-dlp (self-contained aarch64-Binary) für den Instagram-Reel-Import (nur Caption)
+RUN curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64" -o /usr/local/bin/yt-dlp \
+ && chmod +x /usr/local/bin/yt-dlp \
+ && yt-dlp --version
+
 WORKDIR /app
 # Quelle (core, scripts, templates, fonts) + Prod-node_modules + Build-Output
 COPY --from=builder /app/node_modules ./node_modules
