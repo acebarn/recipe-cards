@@ -20,15 +20,23 @@
   let terms = $state<string[]>([]);
   let draft = $state("");
 
+  function commit(part: string) {
+    const t = norm(part);
+    if (t && !terms.includes(t)) terms = [...terms, t];
+  }
   function addDraft() {
-    for (const part of draft.split(",")) {
-      const t = norm(part);
-      if (t && !terms.includes(t)) terms = [...terms, t];
-    }
+    commit(draft);
     draft = "";
   }
+  // Sobald ein Komma getippt/eingefügt wird: alles davor sofort als Chip.
+  function onInput() {
+    if (!draft.includes(",")) return;
+    const parts = draft.split(",");
+    draft = parts.pop() ?? "";
+    for (const p of parts) commit(p);
+  }
   function onKey(e: KeyboardEvent) {
-    if (e.key === "Enter" || e.key === ",") {
+    if (e.key === "Enter") {
       e.preventDefault();
       addDraft();
     } else if (e.key === "Backspace" && !draft && terms.length) {
@@ -67,6 +75,7 @@
     <input
       class="field"
       bind:value={draft}
+      oninput={onInput}
       onkeydown={onKey}
       onblur={addDraft}
       placeholder={terms.length ? "" : "z. B. Zucchini, Feta, Eier …"}
