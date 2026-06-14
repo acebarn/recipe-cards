@@ -2,7 +2,28 @@
   import { browser } from "$app/environment";
   import { flip } from "svelte/animate";
   import { fade } from "svelte/transition";
+  import { cubicOut } from "svelte/easing";
   import type { PageData } from "./$types";
+
+  // Out-Transition: Karte aus dem Layout-Fluss lösen (absolut an ihren
+  // alten Platz pinnen), damit die übrigen Karten sofort per flip
+  // nachrücken können, während diese hier zerfällt.
+  function dissolve(node: HTMLElement, { duration = 240 } = {}) {
+    const rect = node.getBoundingClientRect();
+    const parent = node.offsetParent as HTMLElement | null;
+    const prect = parent?.getBoundingClientRect();
+    const top = rect.top - (prect?.top ?? 0) + (parent?.scrollTop ?? 0);
+    const left = rect.left - (prect?.left ?? 0) + (parent?.scrollLeft ?? 0);
+    const { width, height } = rect;
+    return {
+      duration,
+      easing: cubicOut,
+      css: (t: number) =>
+        `position:absolute; top:${top}px; left:${left}px; width:${width}px; height:${height}px;` +
+        `opacity:${t}; transform:scale(${0.8 + 0.2 * t}) rotate(${(1 - t) * -3}deg);` +
+        `z-index:0; pointer-events:none;`,
+    };
+  }
 
   let { data }: { data: PageData } = $props();
   type R = PageData["recipes"][number];
@@ -55,11 +76,11 @@
     ),
   );
   const byTitle = (a: R, b: R) => a.title.localeCompare(b.title, "de");
-  let flat = $derived([...filtered].sort(byTitle));
   let newest = $derived([...data.recipes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6));
+  // Gruppen immer aus dem gefilterten Set — so wird in-place gefiltert.
   let groups = $derived.by(() => {
     const map = new Map<string, R[]>();
-    for (const r of data.recipes) {
+    for (const r of filtered) {
       const key = r.category || "Sonstige";
       (map.get(key) ?? map.set(key, []).get(key)!).push(r);
     }
@@ -115,26 +136,32 @@
 </div>
 
 {#if filtering}
-  <p class="count">{flat.length} {flat.length === 1 ? "Treffer" : "Treffer"} · <button class="linkbtn" onclick={reset}>zurücksetzen</button></p>
-  {#if flat.length}
-    {@render items(flat)}
-  {:else}
-    <p class="empty">Keine Rezepte gefunden.</p>
-  {/if}
-{:else}
-  <h2 class="cat-heading" style={`--c: ${colorAt(0)}`}><span class="mark"></span>Neu<span class="arrow">→</span></h2>
-  {@render items(newest)}
-  {#each groups as [category, recipes], gi (category)}
+  <p class="count">{filtered.length} Treffer · <button class="linkbtn" onclick={reset}>zurücksetzen</button></p>
+{/if}
+
+{#if !filtering}
+  <section transition:fade={{ duration: 160 }}>
+    <h2 class="cat-heading" style={`--c: ${colorAt(0)}`}><span class="mark"></span>Neu<span class="arrow">→</span></h2>
+    {@render items(newest)}
+  </section>
+{/if}
+
+{#if filtering && filtered.length === 0}
+  <p class="empty">Keine Rezepte gefunden.</p>
+{/if}
+
+{#each groups as [category, recipes], gi (category)}
+  <section transition:fade={{ duration: 160 }}>
     <h2 class="cat-heading" style={`--c: ${colorAt(gi + 1)}`}><span class="mark"></span>{category}<span class="arrow">→</span></h2>
     {@render items(recipes)}
-  {/each}
-{/if}
+  </section>
+{/each}
 
 {#snippet items(list: R[])}
   {#if view === "grid"}
     <ul class="recipe-grid">
       {#each list as r, i (r.slug)}
-        <li class="recipe-card" style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 280 }} transition:fade={{ duration: 180 }}>
+        <li class="recipe-card" style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 320, easing: cubicOut }} in:fade={{ duration: 200 }} out:dissolve>
           <a href={`/recipe/${r.slug}`}>
             {#if r.image}
               <img class="thumb" src={`/images/${r.image}`} alt={r.title} loading="lazy" />
@@ -155,7 +182,7 @@
   {:else}
     <ul class="recipe-list">
       {#each list as r, i (r.slug)}
-        <li style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 280 }} transition:fade={{ duration: 180 }}>
+        <li style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 320, easing: cubicOut }} in:fade={{ duration: 200 }} out:dissolve>
           <a href={`/recipe/${r.slug}`}>
             {#if r.image}
               <img class="lthumb" src={`/images/${r.image}`} alt="" loading="lazy" />
@@ -176,6 +203,12 @@
 {/snippet}
 
 <style>
+  /* Anker für die beim Filtern abgelösten (position:absolute) Karten */
+  .recipe-grid,
+  .recipe-list {
+    position: relative;
+  }
+
   .bar {
     margin: 0.2rem 0 1.6rem;
     display: flex;
