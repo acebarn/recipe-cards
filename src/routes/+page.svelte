@@ -1,5 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
+  import { flip } from "svelte/animate";
+  import { fade } from "svelte/transition";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -52,7 +54,8 @@
         tokens.every((t) => r.search.includes(t)),
     ),
   );
-  let flat = $derived([...filtered].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  const byTitle = (a: R, b: R) => a.title.localeCompare(b.title, "de");
+  let flat = $derived([...filtered].sort(byTitle));
   let newest = $derived([...data.recipes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6));
   let groups = $derived.by(() => {
     const map = new Map<string, R[]>();
@@ -60,7 +63,9 @@
       const key = r.category || "Sonstige";
       (map.get(key) ?? map.set(key, []).get(key)!).push(r);
     }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "de"));
+    return [...map.entries()]
+      .map(([cat, recipes]) => [cat, [...recipes].sort(byTitle)] as const)
+      .sort((a, b) => a[0].localeCompare(b[0], "de"));
   });
 
   const reset = () => {
@@ -129,7 +134,7 @@
   {#if view === "grid"}
     <ul class="recipe-grid">
       {#each list as r, i (r.slug)}
-        <li class="recipe-card" style={`--c: ${colorAt(i)}`}>
+        <li class="recipe-card" style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 280 }} transition:fade={{ duration: 180 }}>
           <a href={`/recipe/${r.slug}`}>
             {#if r.image}
               <img class="thumb" src={`/images/${r.image}`} alt={r.title} loading="lazy" />
@@ -150,7 +155,7 @@
   {:else}
     <ul class="recipe-list">
       {#each list as r, i (r.slug)}
-        <li style={`--c: ${colorAt(i)}`}>
+        <li style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 280 }} transition:fade={{ duration: 180 }}>
           <a href={`/recipe/${r.slug}`}>
             {#if r.image}
               <img class="lthumb" src={`/images/${r.image}`} alt="" loading="lazy" />
