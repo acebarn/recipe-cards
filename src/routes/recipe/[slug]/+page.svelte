@@ -146,19 +146,7 @@
     flex-wrap: wrap;
   }
   .badge {
-    position: relative;
     flex: none;
-  }
-  .badge::before {
-    /* dezentes Bauhaus-Quadrat (nur Kontur) hinter dem runden Bild */
-    content: "";
-    position: absolute;
-    right: -5px;
-    bottom: -5px;
-    width: 22px;
-    height: 22px;
-    background: transparent;
-    border: 2px solid var(--ink);
   }
   .hero {
     position: relative;
