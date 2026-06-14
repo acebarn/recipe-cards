@@ -2,6 +2,7 @@
   import { formatQuantity, scaleIngredient } from "$core/scale.ts";
   import { mentionedIn } from "$lib/cook.ts";
   import { inlineMd } from "$lib/inline-md.ts";
+  import Stepper from "$lib/Stepper.svelte";
   import { untrack } from "svelte";
   import type { PageData } from "./$types";
 
@@ -74,7 +75,7 @@
       <strong>{data.title}</strong>
       <span class="sub">Schritt {stepIndex + 1} von {total}{scaledServings ? ` · ${scaledServings} Portion${scaledServings === "1" ? "" : "en"}` : ""}</span>
     </div>
-    <label class="scale">×<input type="number" min="0.25" max="20" step="0.25" bind:value={scale} /></label>
+    <Stepper bind:value={scale} />
   </header>
 
   <div class="progress"><div class="bar" style={`width: ${total ? ((stepIndex + 1) / total) * 100 : 0}%`}></div></div>
@@ -135,8 +136,6 @@
   .ttl { display: flex; flex-direction: column; flex: 1; line-height: 1.2; }
   .ttl strong { text-transform: uppercase; letter-spacing: 0.03em; }
   .ttl .sub { color: var(--muted); font-size: 0.85rem; font-weight: 500; }
-  .scale { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--muted); font-weight: 600; }
-  .scale input { width: 3.4rem; padding: 0.35rem 0.4rem; border: 2px solid var(--ink); border-radius: var(--radius); font: inherit; background: #fff; }
 
   .progress { height: 10px; background: #fff; border: 2px solid var(--ink); border-radius: 999px; margin: 0.8rem 0 1.3rem; overflow: hidden; }
   .progress .bar { height: 100%; background: var(--accent); transition: width 0.25s ease; }

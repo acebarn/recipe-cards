@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import { formatQuantity, scaleIngredient } from "$core/scale.ts";
+  import Stepper from "$lib/Stepper.svelte";
   import { inlineMd } from "$lib/inline-md.ts";
   import type { PageData } from "./$types";
 
@@ -38,7 +39,7 @@
   <div class="toolbar">
     <a class="back" href="/">← Übersicht</a>
     <div class="tools">
-      <label class="scale">×<input type="number" min="0.25" max="20" step="0.25" bind:value={scale} /></label>
+      <Stepper bind:value={scale} />
       <a class="btn" href={cookHref}>🍳 Kochmodus</a>
       <a class="btn" href={pdfHref} target="_blank" rel="noopener">PDF</a>
       <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
@@ -127,21 +128,7 @@
   }
   .tools form {
     margin: 0;
-  }
-  .scale {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    color: var(--muted);
-    font-weight: 600;
-  }
-  .scale input {
-    width: 3.6rem;
-    padding: 0.4rem 0.45rem;
-    border: 2px solid var(--ink);
-    border-radius: var(--radius);
-    font: inherit;
-    background: #fff;
+    display: flex;
   }
 
   .recipe {
@@ -163,14 +150,15 @@
     flex: none;
   }
   .badge::before {
-    /* Bauhaus-Quadrat hinter dem runden Bild */
+    /* dezentes Bauhaus-Quadrat (nur Kontur) hinter dem runden Bild */
     content: "";
     position: absolute;
-    right: -10px;
-    bottom: -8px;
-    width: 34px;
-    height: 34px;
-    background: var(--ink);
+    right: -5px;
+    bottom: -5px;
+    width: 22px;
+    height: 22px;
+    background: transparent;
+    border: 2px solid var(--ink);
   }
   .hero {
     position: relative;

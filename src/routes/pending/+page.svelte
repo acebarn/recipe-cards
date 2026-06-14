@@ -20,10 +20,21 @@
   .auth-box {
     max-width: 460px;
     margin: 3rem auto;
-    background: var(--card);
-    border: 1px solid var(--border);
+    background: #fff;
+    border: 3px solid var(--ink);
     border-radius: var(--radius);
-    padding: 1.6rem;
+    padding: 1.8rem 1.6rem;
     text-align: center;
+    box-shadow: 8px 8px 0 var(--blue);
+  }
+  h2 {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    margin: 0 0 0.6rem;
+  }
+  .linkbtn {
+    color: var(--ink);
+    margin-top: 0.6rem;
   }
 </style>

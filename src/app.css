@@ -84,9 +84,10 @@ h3 {
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1.1rem;
-  padding-top: max(0.85rem, env(safe-area-inset-top));
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.7rem 1.1rem;
+  padding-top: max(0.7rem, env(safe-area-inset-top));
   background: var(--ink);
   color: #fff;
   /* Tri-Color-Stripe (Bauhaus-Signatur) als unterer Rand */
@@ -100,25 +101,51 @@ h3 {
     1;
 }
 
-.app-header h1 {
+.app-header .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #fff;
+  min-width: 0;
+}
+.app-header .logo {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+.app-header .wordmark {
   font-size: 1.15rem;
-  margin: 0;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-}
-.app-header h1 a {
-  color: #fff;
 }
 
 .app-header .nav {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 1.1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+@media (max-width: 560px) {
+  .app-header {
+    gap: 0.5rem 0.7rem;
+  }
+  .app-header .wordmark {
+    font-size: 1rem;
+  }
+  .app-header .logo {
+    width: 26px;
+    height: 26px;
+  }
+  .app-header .nav {
+    gap: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
 }
 .app-header .nav a {
   color: #fff;
@@ -156,8 +183,11 @@ main {
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
-  padding: 0.5rem 0.95rem;
+  height: 2.5rem;
+  padding: 0 0.95rem;
+  line-height: 1;
   border: 2px solid var(--ink);
   border-radius: var(--radius);
   background: #fff;

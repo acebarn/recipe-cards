@@ -13,7 +13,8 @@
 
 <svelte:head><title>Mitglieder</title></svelte:head>
 
-<h2>Mitglieder</h2>
+<p class="back"><a href="/">← Übersicht</a></p>
+<h2 class="page-title">Mitglieder</h2>
 
 {#if form?.error}<p class="msg err">{form.error}</p>{/if}
 {#if form?.ok}<p class="msg ok">{form.ok}</p>{/if}
@@ -61,23 +62,145 @@
 </ul>
 
 <style>
-  .msg { padding: 0.5rem 0.75rem; border-radius: 8px; }
-  .msg.err { background: #fde8e8; color: #9b1c1c; }
-  .msg.ok { background: #e6f4ea; color: #1e6b34; }
-  .invite { display: flex; gap: 0.5rem; margin: 1rem 0; }
-  .invite input { flex: 1; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 8px; }
-  .invite button { padding: 0.55rem 1rem; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
-  .members { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
-  .members li { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.7rem 0.9rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
-  .who { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-  .email { color: var(--muted); font-size: 0.85rem; }
-  .badge { font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 999px; background: #eee; color: #444; }
-  .badge.approved { background: #e6f4ea; color: #1e6b34; }
-  .badge.invited { background: #fff3cd; color: #8a6d00; }
-  .badge.blocked { background: #fde8e8; color: #9b1c1c; }
-  .badge.owner { background: var(--accent); color: #fff; }
-  .badge.unlinked { background: #eef; color: #556; }
-  .actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-  .actions button { padding: 0.35rem 0.6rem; border: 1px solid var(--border); border-radius: 7px; background: #fff; cursor: pointer; font-size: 0.85rem; }
-  .actions button:hover { border-color: var(--accent); }
+  .back a {
+    color: var(--ink);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .page-title {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin: 0.3rem 0 1.1rem;
+  }
+  .msg {
+    padding: 0.6rem 0.85rem;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    font-weight: 500;
+  }
+  .msg.err {
+    background: #fde8e8;
+    color: #9b1c1c;
+  }
+  .msg.ok {
+    background: #e6f4ea;
+    color: #1e6b34;
+  }
+  .invite {
+    display: flex;
+    gap: 0.6rem;
+    margin: 1rem 0 1.6rem;
+    flex-wrap: wrap;
+  }
+  .invite input {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.6rem 0.8rem;
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    font: inherit;
+    background: #fff;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .invite input:focus {
+    outline: none;
+    box-shadow: 3px 3px 0 var(--accent);
+  }
+  .invite button {
+    padding: 0 1.1rem;
+    height: 2.6rem;
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .members {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .members li {
+    background: #fff;
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 0.8rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .who strong {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .email {
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.12rem 0.5rem;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    background: #eee;
+    color: var(--ink);
+  }
+  .badge.approved {
+    background: #bfe6c9;
+  }
+  .badge.invited {
+    background: var(--yellow);
+  }
+  .badge.blocked {
+    background: #f4b4ae;
+  }
+  .badge.owner {
+    background: var(--blue);
+    color: #fff;
+  }
+  .badge.unlinked {
+    background: #d8d8ea;
+  }
+  .actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .actions form {
+    margin: 0;
+  }
+  .actions button {
+    padding: 0.4rem 0.7rem;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.82rem;
+  }
+  .actions button:hover {
+    background: var(--accent);
+    color: #fff;
+  }
 </style>
