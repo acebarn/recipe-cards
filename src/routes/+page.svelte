@@ -8,7 +8,7 @@
   // Out-Transition: Karte aus dem Layout-Fluss lösen (absolut an ihren
   // alten Platz pinnen), damit die übrigen Karten sofort per flip
   // nachrücken können, während diese hier zerfällt.
-  function dissolve(node: HTMLElement, { duration = 240 } = {}) {
+  function dissolve(node: HTMLElement, { duration = 450 } = {}) {
     const rect = node.getBoundingClientRect();
     const parent = node.offsetParent as HTMLElement | null;
     const prect = parent?.getBoundingClientRect();
@@ -140,7 +140,7 @@
 {/if}
 
 {#if !filtering}
-  <section transition:fade={{ duration: 160 }}>
+  <section transition:fade={{ duration: 350 }}>
     <h2 class="cat-heading" style={`--c: ${colorAt(0)}`}><span class="mark"></span>Neu<span class="arrow">→</span></h2>
     {@render items(newest)}
   </section>
@@ -151,7 +151,7 @@
 {/if}
 
 {#each groups as [category, recipes], gi (category)}
-  <section transition:fade={{ duration: 160 }}>
+  <section transition:fade={{ duration: 350 }}>
     <h2 class="cat-heading" style={`--c: ${colorAt(gi + 1)}`}><span class="mark"></span>{category}<span class="arrow">→</span></h2>
     {@render items(recipes)}
   </section>
@@ -161,7 +161,7 @@
   {#if view === "grid"}
     <ul class="recipe-grid">
       {#each list as r, i (r.slug)}
-        <li class="recipe-card" style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 320, easing: cubicOut }} in:fade={{ duration: 200 }} out:dissolve>
+        <li class="recipe-card" style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 600, easing: cubicOut }} in:fade={{ duration: 400, delay: 250 }} out:dissolve>
           <a href={`/recipe/${r.slug}`}>
             {#if r.image}
               <img class="thumb" src={`/images/${r.image}`} alt={r.title} loading="lazy" />
@@ -182,7 +182,7 @@
   {:else}
     <ul class="recipe-list">
       {#each list as r, i (r.slug)}
-        <li style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 320, easing: cubicOut }} in:fade={{ duration: 200 }} out:dissolve>
+        <li style={`--c: ${colorAt(i)}`} animate:flip={{ duration: 600, easing: cubicOut }} in:fade={{ duration: 400, delay: 250 }} out:dissolve>
           <a href={`/recipe/${r.slug}`}>
             {#if r.image}
               <img class="lthumb" src={`/images/${r.image}`} alt="" loading="lazy" />
