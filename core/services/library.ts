@@ -1,6 +1,7 @@
 // Bibliotheks-CRUD über das Recipe-Modell auf SQLite.
 // Hält die FTS5-Tabelle (recipes_fts) synchron und denormalisiert search_blob.
 import { prettyCategory, prettyDifficulty } from "../category.ts";
+import { classifyDiet } from "../diet.ts";
 import { flattenIngredients } from "../ingredients.ts";
 import type { IngredientSection, Recipe, RecipeMeta } from "../model.ts";
 import { totalMinutes } from "../time.ts";
@@ -374,8 +375,10 @@ export interface RecipeIndexEntry {
   totalMinutes: number | null;
   servings: number | null;
   tags: string[];
-  /** true, wenn als vegan getaggt oder im Titel als vegan ausgewiesen. */
+  /** Heuristik (Zutaten + Tags/Titel): rein pflanzlich. */
   vegan: boolean;
+  /** Heuristik: ohne Fleisch/Fisch (vegan impliziert vegetarisch). */
+  vegetarian: boolean;
   /** Eigentümer-User-ID (für „nur meine Rezepte"); null = ownerlos. */
   createdBy: number | null;
   image: string | null;
@@ -397,9 +400,7 @@ export function recipeIndex(): RecipeIndexEntry[] {
     totalMinutes: totalMinutes(r.meta.prep_time, r.meta.cook_time, r.meta.rest_time),
     servings: r.meta.servings ?? null,
     tags: r.meta.tags ?? [],
-    vegan:
-      (r.meta.tags ?? []).some((t) => t.trim().toLowerCase() === "vegan") ||
-      /\bvegan/i.test(r.meta.title),
+    ...classifyDiet(flattenIngredients(r.ingredients), r.meta),
     createdBy: r.createdBy ?? null,
     image: r.imageFilename ?? null,
     createdAt: r.createdAt,

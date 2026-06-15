@@ -46,13 +46,25 @@
   const toggle = (k: keyof typeof open) => (open[k] = !open[k]);
   const TIME_LABEL = { fast: "⚡ <30 Min", mittel: "🕒 30–60 Min", lang: "🍲 >60 Min" } as const;
 
-  // Ansicht pro Gerät merken
+  // Globale Scope-Toggles (persistiert pro Gerät)
+  let mineOnly = $state(false);
+  let veganOnly = $state(false);
+  let vegetarianOnly = $state(false);
+
+  // Ansicht + Scopes pro Gerät merken
   if (browser) {
     const v = localStorage.getItem("recipeView");
     if (v === "list" || v === "grid") view = v;
+    mineOnly = localStorage.getItem("scopeMine") === "1";
+    veganOnly = localStorage.getItem("scopeVegan") === "1";
+    vegetarianOnly = localStorage.getItem("scopeVeg") === "1";
   }
   $effect(() => {
-    if (browser) localStorage.setItem("recipeView", view);
+    if (!browser) return;
+    localStorage.setItem("recipeView", view);
+    localStorage.setItem("scopeMine", mineOnly ? "1" : "0");
+    localStorage.setItem("scopeVegan", veganOnly ? "1" : "0");
+    localStorage.setItem("scopeVeg", vegetarianOnly ? "1" : "0");
   });
 
   // Chip-Optionen aus den Daten
@@ -72,11 +84,12 @@
   let tokens = $derived(query.toLowerCase().split(/\s+/).filter(Boolean));
 
   // Globale Scopes (Toggles): wirken auf alles (Neu-Streifen + Gruppen).
-  let mineOnly = $state(false);
-  let veganOnly = $state(false);
   let scoped = $derived(
     data.recipes.filter(
-      (r) => (!mineOnly || (data.meId != null && r.createdBy === data.meId)) && (!veganOnly || r.vegan),
+      (r) =>
+        (!mineOnly || (data.meId != null && r.createdBy === data.meId)) &&
+        (!veganOnly || r.vegan) &&
+        (!vegetarianOnly || r.vegetarian),
     ),
   );
 
@@ -123,16 +136,8 @@
     </div>
   </div>
 
-  <div class="scopes">
-    <button class="switch" class:on={mineOnly} role="switch" aria-checked={mineOnly} onclick={() => (mineOnly = !mineOnly)}>
-      <span class="knob"></span><span class="sw-lbl">Nur meine Rezepte</span>
-    </button>
-    <button class="switch vegan" class:on={veganOnly} role="switch" aria-checked={veganOnly} onclick={() => (veganOnly = !veganOnly)}>
-      <span class="knob"></span><span class="sw-lbl">🌱 Vegan</span>
-    </button>
-  </div>
-
-  <div class="filtertabs">
+  <div class="filterbar">
+    <div class="filtertabs">
     <button class="ftab" style="--d: var(--red)" class:open={open.cat} class:set={!!cat} onclick={() => toggle("cat")}>
       <span class="dot"></span>Kategorie{#if cat}<span class="val">{cat}</span>{/if}<span class="chev">{open.cat ? "▾" : "▸"}</span>
     </button>
@@ -144,6 +149,21 @@
         <span class="dot"></span>Schwierigkeit{#if diff}<span class="val">{diff}</span>{/if}<span class="chev">{open.diff ? "▾" : "▸"}</span>
       </button>
     {/if}
+    </div>
+
+    <div class="scopes">
+      {#if data.meId != null}
+        <button class="switch" class:on={mineOnly} role="switch" aria-checked={mineOnly} onclick={() => (mineOnly = !mineOnly)}>
+          <span class="knob"></span><span class="sw-lbl">Nur meine</span>
+        </button>
+      {/if}
+      <button class="switch veg" class:on={vegetarianOnly} role="switch" aria-checked={vegetarianOnly} onclick={() => (vegetarianOnly = !vegetarianOnly)}>
+        <span class="knob"></span><span class="sw-lbl">🥕 Vegetarisch</span>
+      </button>
+      <button class="switch vegan" class:on={veganOnly} role="switch" aria-checked={veganOnly} onclick={() => (veganOnly = !veganOnly)}>
+        <span class="knob"></span><span class="sw-lbl">🌱 Vegan</span>
+      </button>
+    </div>
   </div>
 
   {#if open.cat}
@@ -305,17 +325,36 @@
     color: #fff;
   }
 
-  /* Scope-Switches */
+  /* Filterleiste: Tabs links, Scope-Switches rechts (Desktop);
+     auf Mobil Switches oberhalb der Tabs. */
+  .filterbar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem 1rem;
+  }
+  .filterbar .filtertabs {
+    flex: 1 1 auto;
+  }
   .scopes {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+    flex: none;
+  }
+  @media (max-width: 680px) {
+    .filterbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .scopes {
+      order: -1; /* oberhalb der Filter-Buttons */
+    }
   }
   .switch {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+    padding: 0.3rem 0.75rem 0.3rem 0.4rem;
     border: 2.5px solid var(--ink);
     border-radius: 999px;
     background: #fff;
@@ -326,9 +365,9 @@
     color: var(--ink);
   }
   .switch .knob {
-    width: 36px;
-    height: 20px;
-    border: 2px solid var(--ink);
+    width: 40px;
+    height: 24px;
+    border: 2.5px solid var(--ink);
     border-radius: 999px;
     background: var(--paper);
     position: relative;
@@ -338,23 +377,27 @@
   .switch .knob::after {
     content: "";
     position: absolute;
-    top: 1px;
-    left: 1px;
-    width: 14px;
-    height: 14px;
-    border: 2px solid var(--ink);
+    top: 50%;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border: 2.5px solid var(--ink);
     border-radius: 50%;
     background: #fff;
-    transition: transform 0.15s;
+    transform: translateY(-50%);
+    transition: left 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .switch.on .knob {
     background: var(--blue);
+  }
+  .switch.veg.on .knob {
+    background: #8bc34a;
   }
   .switch.vegan.on .knob {
     background: #3aaa5e;
   }
   .switch.on .knob::after {
-    transform: translateX(16px);
+    left: calc(100% - 16px - 2px);
   }
 
   /* Filter-Tabs: farbig unterscheidbar, klappen Gruppen aus */
