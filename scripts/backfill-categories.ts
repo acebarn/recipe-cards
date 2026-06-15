@@ -32,7 +32,7 @@ const MAP: Record<string, string> = {
   "sushi-reis": "grundrezepte",
   "suesskartoffelstampf-mit-joghurt-und-limette": "beilagen",
   tabbouleh: "salate",
-  "teichners-24h-pizzateig": "brot",
+  "teichners-24h-pizzateig": "grundrezepte",
   "vegane-karottenschnitte": "kuchen",
   "vegane-schwaebische-saure-linsen-mit-spaetzle": "eintoepfe",
   "veganer-lomo-saltado": "hauptgerichte",
@@ -41,7 +41,7 @@ const MAP: Record<string, string> = {
   "veganes-himbeer-tiramisu": "desserts",
   "veganes-ruehrei-mit-tofu-kala-namak": "fruehstueck",
   "vegetarische-frikadellen": "hauptgerichte",
-  "waldis-24-48h-pizzateig": "brot",
+  "waldis-24-48h-pizzateig": "grundrezepte",
   "zitronensorbet-ohne-eiweiss": "desserts",
   zwiebelkuchen: "brot",
 };
