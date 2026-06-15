@@ -44,6 +44,8 @@
     }
   }
   const remove = (t: string) => (terms = terms.filter((x) => x !== t));
+  // Beim Betreten der View direkt ins Eingabefeld fokussieren.
+  const autofocus = (node: HTMLInputElement) => node.focus();
 
   function matched(r: R): string[] {
     const text = r.ingredients;
@@ -74,6 +76,7 @@
     {/each}
     <input
       class="field"
+      use:autofocus
       bind:value={draft}
       oninput={onInput}
       onkeydown={onKey}
