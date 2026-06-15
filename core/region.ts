@@ -28,7 +28,7 @@ const FLAGS: Record<string, string> = {
   norwegen: "🇳🇴",
   niederlande: "🇳🇱",
   belgien: "🇧🇪",
-  england: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  england: "🇬🇧",
   großbritannien: "🇬🇧",
   vereinigtes_königreich: "🇬🇧",
   irland: "🇮🇪",
@@ -105,4 +105,87 @@ export function regionLabel(region?: string | null): string {
   if (!region) return "";
   const emoji = regionEmoji(region);
   return emoji ? `${emoji} ${region}` : region;
+}
+
+// Ungefähre Geokoordinaten [lon, lat] je Region – für die Welt-Bubble-Karte.
+// Breite Regionen werden auf einen repräsentativen Punkt gelegt.
+const COORDS: Record<string, [number, number]> = {
+  deutschland: [10.5, 51],
+  österreich: [14, 47.5],
+  oesterreich: [14, 47.5],
+  schweiz: [8, 46.8],
+  italien: [12.5, 42],
+  italienisch: [12.5, 42],
+  frankreich: [2.5, 47],
+  französisch: [2.5, 47],
+  spanien: [-3.7, 40],
+  spanisch: [-3.7, 40],
+  portugal: [-8, 39.5],
+  griechenland: [22, 39],
+  griechisch: [22, 39],
+  türkei: [35, 39],
+  tuerkei: [35, 39],
+  türkisch: [35, 39],
+  ungarn: [19, 47],
+  ungarisch: [19, 47],
+  polen: [19, 52],
+  dänemark: [10, 56],
+  daenemark: [10, 56],
+  dänisch: [10, 56],
+  schweden: [15, 62],
+  norwegen: [9, 61],
+  niederlande: [5.5, 52.2],
+  belgien: [4.5, 50.8],
+  england: [-1.5, 52.5],
+  großbritannien: [-1.5, 54],
+  irland: [-8, 53],
+  marokko: [-7, 32],
+  marokkanisch: [-7, 32],
+  tunesien: [9, 34],
+  ägypten: [30, 27],
+  aegypten: [30, 27],
+  libanon: [35.8, 33.9],
+  libanesisch: [35.8, 33.9],
+  syrien: [38, 35],
+  israel: [35, 31.5],
+  iran: [53, 32],
+  persisch: [53, 32],
+  indien: [79, 22],
+  indisch: [79, 22],
+  japan: [138, 37],
+  japanisch: [138, 37],
+  china: [105, 35],
+  chinesisch: [105, 35],
+  thailand: [101, 15],
+  thailändisch: [101, 15],
+  vietnam: [106, 16],
+  korea: [128, 36],
+  koreanisch: [128, 36],
+  indonesien: [113, -2],
+  mexiko: [-102, 23],
+  mexikanisch: [-102, 23],
+  peru: [-76, -10],
+  peruanisch: [-76, -10],
+  brasilien: [-51, -10],
+  argentinien: [-64, -38],
+  usa: [-98, 39],
+  amerikanisch: [-98, 39],
+  // Breitere Regionen → repräsentativer Punkt
+  levante: [37, 34],
+  levantinisch: [37, 34],
+  arabisch: [45, 24],
+  orientalisch: [45, 30],
+  nahost: [45, 30],
+  maghreb: [3, 32],
+  nordafrika: [18, 28],
+  nordafrikanisch: [18, 28],
+  mediterran: [16, 38],
+  mittelmeer: [16, 38],
+};
+
+/** Ungefähre [lon, lat]-Koordinate einer Region, oder null (z.B. "International"). */
+export function regionCoords(region?: string | null): [number, number] | null {
+  if (!region) return null;
+  const key = region.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return COORDS[key] ?? COORDS[key.replace(/_/g, " ")] ?? null;
 }
