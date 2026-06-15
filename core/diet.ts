@@ -17,7 +17,7 @@ const MEAT_RE = new RegExp(
 
 // Milchprodukte/Eier/Honig (nach Entfernen pflanzlicher Alternativen).
 const DAIRY_RE =
-  /(milch|sahne|rahm|butter|joghurt|jogurt|quark|käse|kaese|parmesan|mozzarella|feta|mascarpone|ricotta|schmand|crème|creme fra|honig|ghee|molke|gorgonzola|halloumi|burrata|pecorino|frischk)/;
+  /(milch|sahne|rahm|butter|joghurt|jogurt|quark|käse|kaese|parmesan|mozzarella|feta|mascarpone|ricotta|schmand|crème|creme fra|honig|ghee|molke|gorgonzola|halloumi|burrata|pecorino|frischk|mayonnaise|mayo|remoulade|aioli)/;
 const EGG_RE = /(?<![a-zäöüß])(ei|eier|eiern|eigelb|eiklar|eiweiß|eiweiss|eidotter)(?![a-zäöüß])/;
 
 export interface DietFlags {
