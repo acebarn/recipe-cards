@@ -1,10 +1,14 @@
+import { env } from "$env/dynamic/private";
 import { prettyCategory, prettyDifficulty } from "$core/category.ts";
 import { regionLabel } from "$core/region.ts";
 import { getProjectRoot } from "$core/paths.ts";
+import { rebuildMarkdown } from "$core/serialize.ts";
 import { themeFor } from "$core/theme.ts";
-import { getRecipeBySlug, softDeleteRecipe } from "$core/services/library.ts";
-import { enqueueDelete } from "$core/services/sync-queue.ts";
-import { error, redirect } from "@sveltejs/kit";
+import { getRecipeBySlug, softDeleteRecipe, updateRecipe } from "$core/services/library.ts";
+import { generateAndStoreImage } from "$core/services/image-store.ts";
+import { enqueueDelete, enqueueUpsert } from "$core/services/sync-queue.ts";
+import { isAdmin } from "$core/services/users.ts";
+import { error, fail, redirect } from "@sveltejs/kit";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Actions, PageServerLoad } from "./$types";
@@ -27,7 +31,7 @@ function formatTime(raw?: string): string | null {
   return `${m} Min.`;
 }
 
-export const load: PageServerLoad = ({ params }) => {
+export const load: PageServerLoad = ({ params, locals }) => {
   const r = getRecipeBySlug(params.slug);
   if (!r) throw error(404, "Rezept nicht gefunden");
   const m = r.meta;
@@ -47,6 +51,9 @@ export const load: PageServerLoad = ({ params }) => {
       chipBg: theme.chipBg,
       noteBg: theme.noteBg,
     },
+    canAdmin: isAdmin(locals.user),
+    imageSubject: m.image_subject ?? "",
+    imageVersion: r.lastModified,
     recipe: {
       slug: r.slug,
       title: m.title,
@@ -75,5 +82,38 @@ export const actions: Actions = {
     const ref = softDeleteRecipe(params.slug);
     if (ref) enqueueDelete(ref);
     throw redirect(303, "/");
+  },
+
+  // Admin: Bild mit (optional angepasstem) image_subject neu generieren.
+  regenerateImage: async ({ request, params, locals }) => {
+    if (!isAdmin(locals.user)) throw error(403, "Nur Admins dürfen Bilder neu generieren.");
+    const r = getRecipeBySlug(params.slug);
+    if (!r) throw error(404, "Rezept nicht gefunden");
+    const apiKey = env.PIXAZO_API_KEY;
+    if (!apiKey) return fail(500, { imgError: "Kein PIXAZO_API_KEY konfiguriert." });
+
+    const subject = String((await request.formData()).get("image_subject") ?? "").trim();
+    // image_subject übernehmen; image_prompt leeren, damit der Subject maßgeblich ist.
+    const meta = { ...r.meta, image_subject: subject || undefined, image_prompt: undefined };
+    let md = rebuildMarkdown(r.markdownBody, meta);
+    if (!md.endsWith("\n")) md += "\n";
+    const recipe = { meta, ingredients: r.ingredients, steps: r.steps, notes: r.notes, sourceFile: params.slug };
+    updateRecipe(params.slug, {
+      recipe,
+      markdownBody: md,
+      stepIngredients: r.stepIngredients,
+      updatedBy: locals.user?.id,
+    });
+
+    try {
+      // Zufalls-Seed → frisches Bild auch bei unverändertem Subject.
+      await generateAndStoreImage(recipe, params.slug, apiKey, {
+        seed: Math.floor(Math.random() * 2147483647),
+      });
+    } catch (e) {
+      return fail(502, { imgError: `Bildgenerierung fehlgeschlagen: ${(e as Error).message}` });
+    }
+    enqueueUpsert(params.slug);
+    return { imgOk: "Neues Bild generiert." };
   },
 };

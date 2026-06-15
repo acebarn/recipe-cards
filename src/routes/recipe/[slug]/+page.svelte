@@ -1,13 +1,18 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { enhance } from "$app/forms";
   import { formatQuantity, scaleIngredient } from "$core/scale.ts";
   import Stepper from "$lib/Stepper.svelte";
   import { inlineMd } from "$lib/inline-md.ts";
-  import type { PageData } from "./$types";
+  import type { ActionData, PageData } from "./$types";
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
   let r = $derived(data.recipe);
   let t = $derived(data.theme);
+
+  let showImagePanel = $state(false);
+  let imageSubject = $state(untrack(() => data.imageSubject));
+  let regenerating = $state(false);
 
   let scale = $state(1);
   let pdfHref = $derived(`/recipe/${r.slug}/pdf${scale !== 1 ? `?scale=${scale}` : ""}`);
@@ -49,10 +54,48 @@
     </div>
   </div>
 
+  {#if data.canAdmin}
+    <div class="admin-box">
+      <button class="admin-toggle" onclick={() => (showImagePanel = !showImagePanel)} aria-expanded={showImagePanel}>
+        🖼️ Bild neu generieren <span class="ch">{showImagePanel ? "▾" : "▸"}</span>
+      </button>
+      {#if showImagePanel}
+        <form
+          method="POST"
+          action="?/regenerateImage"
+          use:enhance={() => {
+            regenerating = true;
+            return async ({ update }) => {
+              await update({ reset: false });
+              regenerating = false;
+            };
+          }}
+        >
+          <label for="imgsubj">Bild-Motiv (englisch, kurz)</label>
+          <textarea
+            id="imgsubj"
+            name="image_subject"
+            bind:value={imageSubject}
+            rows="2"
+            placeholder="z. B. a slice of apple pie with lattice crust"
+          ></textarea>
+          <div class="admin-row">
+            <button class="btn" type="submit" disabled={regenerating}>
+              {regenerating ? "Generiere …" : "Neu generieren"}
+            </button>
+            <span class="hint">Erzeugt ein neues Aquarell (dauert einige Sekunden).</span>
+          </div>
+          {#if form?.imgError}<p class="msg err">{form.imgError}</p>{/if}
+          {#if form?.imgOk}<p class="msg ok">{form.imgOk}</p>{/if}
+        </form>
+      {/if}
+    </div>
+  {/if}
+
   <article class="recipe">
     <header class="rhead">
       {#if r.image}
-        <div class="badge"><img class="hero" src={`/images/${r.image}`} alt={r.title} /></div>
+        <div class="badge"><img class="hero" src={`/images/${r.image}?v=${data.imageVersion}`} alt={r.title} /></div>
       {/if}
       <div class="head-main">
         <h1 class="title-block">{r.title}</h1>
@@ -130,6 +173,75 @@
   .tools form {
     margin: 0;
     display: flex;
+  }
+
+  .admin-box {
+    margin-bottom: 1rem;
+    border: 2.5px dashed var(--ink);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.9rem;
+    background: var(--accent-soft, #f4efe3);
+  }
+  .admin-toggle {
+    background: none;
+    border: 0;
+    font: inherit;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 0.82rem;
+    cursor: pointer;
+    color: var(--ink);
+    padding: 0;
+  }
+  .admin-toggle .ch {
+    color: var(--muted);
+  }
+  .admin-box form {
+    margin-top: 0.7rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .admin-box label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .admin-box textarea {
+    width: 100%;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.6rem;
+    font: inherit;
+    resize: vertical;
+    background: #fff;
+  }
+  .admin-row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+  }
+  .admin-row .hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .admin-box .msg {
+    margin: 0;
+    padding: 0.4rem 0.7rem;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .admin-box .msg.err {
+    background: #fde8e8;
+    color: #9b1c1c;
+  }
+  .admin-box .msg.ok {
+    background: #e6f4ea;
+    color: #1e6b34;
   }
 
   .recipe {

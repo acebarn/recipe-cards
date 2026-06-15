@@ -86,6 +86,8 @@ export interface GenImageOptions {
   apiKey: string;
   size?: number;
   steps?: number;
+  /** Expliziter Seed (z.B. zufällig bei Neugenerierung); sonst deterministisch aus dem Slug. */
+  seed?: number;
 }
 
 /** High-Level: Rezept + Slug → Bild-Buffer samt erkannter Endung. */
@@ -97,7 +99,7 @@ export async function generateRecipeImage(
   const buffer = await generate(buildImagePrompt(recipe), opts.apiKey, {
     size: opts.size ?? DEFAULT_IMAGE_SIZE,
     steps: opts.steps ?? DEFAULT_IMAGE_STEPS,
-    seed: seedFrom(slug),
+    seed: opts.seed ?? seedFrom(slug),
   });
   return { buffer, ext: extFor(buffer) };
 }

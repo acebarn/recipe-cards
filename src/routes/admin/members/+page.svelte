@@ -32,6 +32,7 @@
         {#if u.name}<span class="email">{u.email}</span>{/if}
         <span class="badge {u.status}">{statusLabel[u.status] ?? u.status}</span>
         {#if u.role === "owner"}<span class="badge owner">Owner</span>{/if}
+        {#if u.role === "admin"}<span class="badge admin">Admin</span>{/if}
         {#if !u.linked}<span class="badge unlinked">noch nie angemeldet</span>{/if}
       </div>
       <div class="actions">
@@ -46,14 +47,16 @@
               <input type="hidden" name="id" value={u.id} /><button>Sperren</button>
             </form>
           {/if}
-          {#if u.role === "owner"}
-            <form method="POST" action="?/demote" use:enhance>
-              <input type="hidden" name="id" value={u.id} /><button>Zu Mitglied</button>
-            </form>
-          {:else}
-            <form method="POST" action="?/promote" use:enhance>
-              <input type="hidden" name="id" value={u.id} /><button>Zu Owner</button>
-            </form>
+          {#if u.role !== "owner"}
+            {#if u.role === "admin"}
+              <form method="POST" action="?/revokeAdmin" use:enhance>
+                <input type="hidden" name="id" value={u.id} /><button>Admin entfernen</button>
+              </form>
+            {:else}
+              <form method="POST" action="?/makeAdmin" use:enhance>
+                <input type="hidden" name="id" value={u.id} /><button>Zu Admin</button>
+              </form>
+            {/if}
           {/if}
         {/if}
       </div>
@@ -176,6 +179,10 @@
   }
   .badge.owner {
     background: var(--blue);
+    color: #fff;
+  }
+  .badge.admin {
+    background: var(--red);
     color: #fff;
   }
   .badge.unlinked {

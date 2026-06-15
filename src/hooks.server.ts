@@ -1,5 +1,5 @@
 import { startSyncWorker } from "$core/services/drive-sync.ts";
-import { getUserByEmail } from "$core/services/users.ts";
+import { getUserByEmail, isAdmin } from "$core/services/users.ts";
 import { redirect, type Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { authHandle } from "./auth.ts";
@@ -33,9 +33,9 @@ const authorization: Handle = async ({ event, resolve }) => {
   } else if (user.status !== "approved") {
     if (path !== "/pending") throw redirect(303, "/pending");
   } else {
-    // Freigegebene Nutzer: Login/Pending überspringen, Admin nur für Owner.
+    // Freigegebene Nutzer: Login/Pending überspringen, /admin nur für Admins.
     if (path === "/login" || path === "/pending") throw redirect(303, "/");
-    if (path.startsWith("/admin") && user.role !== "owner") throw redirect(303, "/");
+    if (path.startsWith("/admin") && !isAdmin(user)) throw redirect(303, "/");
   }
 
   return resolve(event);

@@ -1,4 +1,5 @@
 import {
+  getUserById,
   inviteUser,
   listUsers,
   setUserRole,
@@ -43,15 +44,21 @@ export const actions: Actions = {
     if (id) setUserStatus(id, "blocked");
     return { ok: "Gesperrt." };
   },
-  promote: async ({ request }) => {
+  makeAdmin: async ({ request }) => {
     const id = Number((await request.formData()).get("id"));
-    if (id) setUserRole(id, "owner");
-    return { ok: "Zum Owner gemacht." };
+    const target = id ? getUserById(id) : null;
+    if (!target) return fail(404, { error: "Nutzer nicht gefunden." });
+    if (target.role === "owner") return fail(400, { error: "Der Owner ist bereits Admin." });
+    setUserRole(id, "admin");
+    return { ok: `${target.name ?? target.email} ist jetzt Admin.` };
   },
-  demote: async ({ request, locals }) => {
+  revokeAdmin: async ({ request, locals }) => {
     const id = Number((await request.formData()).get("id"));
-    if (id === locals.user?.id) return fail(400, { error: "Du kannst dich nicht selbst zurückstufen." });
-    if (id) setUserRole(id, "member");
-    return { ok: "Zu Mitglied gemacht." };
+    const target = id ? getUserById(id) : null;
+    if (!target) return fail(404, { error: "Nutzer nicht gefunden." });
+    if (target.role === "owner") return fail(400, { error: "Dem Owner kann der Admin-Status nicht entzogen werden." });
+    if (id === locals.user?.id) return fail(400, { error: "Du kannst dir den Admin-Status nicht selbst entziehen." });
+    setUserRole(id, "member");
+    return { ok: `${target.name ?? target.email} ist jetzt Mitglied.` };
   },
 };

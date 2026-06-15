@@ -2,8 +2,12 @@
 // Basis-Operationen; die UI/Approval-Flows folgen mit dem Auth-Layer (M1).
 import { getDb } from "./db.ts";
 
-export type UserRole = "owner" | "member";
+export type UserRole = "owner" | "admin" | "member";
 export type UserStatus = "invited" | "approved" | "blocked";
+
+/** Owner und Admins haben Admin-Rechte (Userverwaltung, alle Rezepte, Bild-Neugenerierung). */
+export const isAdmin = (u?: { role: UserRole } | null): boolean =>
+  u?.role === "owner" || u?.role === "admin";
 
 export interface User {
   id: number;
