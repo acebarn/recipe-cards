@@ -1,4 +1,5 @@
 import {
+  deleteUser,
   getUserById,
   inviteUser,
   listUsers,
@@ -38,11 +39,14 @@ export const actions: Actions = {
     if (id) setUserStatus(id, "approved");
     return { ok: "Freigegeben." };
   },
-  block: async ({ request, locals }) => {
+  remove: async ({ request, locals }) => {
     const id = Number((await request.formData()).get("id"));
-    if (id === locals.user?.id) return fail(400, { error: "Du kannst dich nicht selbst sperren." });
-    if (id) setUserStatus(id, "blocked");
-    return { ok: "Gesperrt." };
+    const target = id ? getUserById(id) : null;
+    if (!target) return fail(404, { error: "Nutzer nicht gefunden." });
+    if (target.role === "owner") return fail(400, { error: "Der Owner kann nicht gelöscht werden." });
+    if (id === locals.user?.id) return fail(400, { error: "Du kannst dich nicht selbst löschen." });
+    deleteUser(id);
+    return { ok: `${target.name ?? target.email} gelöscht.` };
   },
   makeAdmin: async ({ request }) => {
     const id = Number((await request.formData()).get("id"));

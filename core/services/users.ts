@@ -202,6 +202,22 @@ export function setUserRole(id: number, role: UserRole): void {
   getDb().prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id);
 }
 
+/**
+ * Löscht einen Nutzer endgültig. Seine Rezepte werden ownerlos (created_by/updated_by
+ * = NULL → nur noch von Admins verwaltbar); Sessions/Einlade-Referenzen werden gelöst.
+ */
+export function deleteUser(id: number): void {
+  const db = getDb();
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE recipes SET created_by = NULL WHERE created_by = ?").run(id);
+    db.prepare("UPDATE recipes SET updated_by = NULL WHERE updated_by = ?").run(id);
+    db.prepare("UPDATE users SET invited_by = NULL WHERE invited_by = ?").run(id);
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM users WHERE id = ?").run(id);
+  });
+  tx();
+}
+
 /** Owner lädt eine E-Mail ein = Vorabfreigabe (status approved, google_sub folgt beim Login). */
 export function inviteUser(email: string, invitedBy?: number): User {
   const existing = getUserByEmail(email);

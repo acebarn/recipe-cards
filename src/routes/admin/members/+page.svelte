@@ -9,6 +9,12 @@
     invited: "wartet",
     blocked: "gesperrt",
   };
+
+  const confirmDelete = (name: string) => (e: SubmitEvent) => {
+    if (!confirm(`„${name}" wirklich löschen? Die Person verliert den Zugang; ihre Rezepte bleiben (ohne Eigentümer) erhalten.`)) {
+      e.preventDefault();
+    }
+  };
 </script>
 
 <svelte:head><title>Mitglieder</title></svelte:head>
@@ -41,23 +47,19 @@
             <input type="hidden" name="id" value={u.id} /><button>Freigeben</button>
           </form>
         {/if}
-        {#if u.id !== data.me}
-          {#if u.status !== "blocked"}
-            <form method="POST" action="?/block" use:enhance>
-              <input type="hidden" name="id" value={u.id} /><button>Sperren</button>
+        {#if u.id !== data.me && u.role !== "owner"}
+          {#if u.role === "admin"}
+            <form method="POST" action="?/revokeAdmin" use:enhance>
+              <input type="hidden" name="id" value={u.id} /><button>Admin entfernen</button>
+            </form>
+          {:else}
+            <form method="POST" action="?/makeAdmin" use:enhance>
+              <input type="hidden" name="id" value={u.id} /><button>Zu Admin</button>
             </form>
           {/if}
-          {#if u.role !== "owner"}
-            {#if u.role === "admin"}
-              <form method="POST" action="?/revokeAdmin" use:enhance>
-                <input type="hidden" name="id" value={u.id} /><button>Admin entfernen</button>
-              </form>
-            {:else}
-              <form method="POST" action="?/makeAdmin" use:enhance>
-                <input type="hidden" name="id" value={u.id} /><button>Zu Admin</button>
-              </form>
-            {/if}
-          {/if}
+          <form method="POST" action="?/remove" use:enhance onsubmit={confirmDelete(u.name ?? u.email)}>
+            <input type="hidden" name="id" value={u.id} /><button class="danger">Löschen</button>
+          </form>
         {/if}
       </div>
     </li>
@@ -209,5 +211,9 @@
   .actions button:hover {
     background: var(--accent);
     color: #fff;
+  }
+  .actions button.danger:hover {
+    background: var(--red);
+    border-color: var(--red);
   }
 </style>
