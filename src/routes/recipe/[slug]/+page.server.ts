@@ -7,7 +7,7 @@ import { themeFor } from "$core/theme.ts";
 import { getRecipeBySlug, softDeleteRecipe, updateRecipe } from "$core/services/library.ts";
 import { generateAndStoreImage } from "$core/services/image-store.ts";
 import { enqueueDelete, enqueueUpsert } from "$core/services/sync-queue.ts";
-import { isAdmin } from "$core/services/users.ts";
+import { canManageRecipe, getUserById, isAdmin } from "$core/services/users.ts";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -52,6 +52,8 @@ export const load: PageServerLoad = ({ params, locals }) => {
       noteBg: theme.noteBg,
     },
     canAdmin: isAdmin(locals.user),
+    canManage: canManageRecipe(locals.user, r.createdBy),
+    createdByName: r.createdBy ? (getUserById(r.createdBy)?.name ?? null) : null,
     imageSubject: m.image_subject ?? "",
     imageVersion: r.lastModified,
     recipe: {
@@ -78,7 +80,12 @@ export const load: PageServerLoad = ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-  delete: ({ params }) => {
+  delete: ({ params, locals }) => {
+    const r = getRecipeBySlug(params.slug);
+    if (!r) throw error(404, "Rezept nicht gefunden");
+    if (!canManageRecipe(locals.user, r.createdBy)) {
+      throw error(403, "Keine Berechtigung, dieses Rezept zu löschen.");
+    }
     const ref = softDeleteRecipe(params.slug);
     if (ref) enqueueDelete(ref);
     throw redirect(303, "/");

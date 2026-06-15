@@ -47,50 +47,14 @@
       <Stepper bind:value={scale} />
       <a class="btn" href={cookHref}>🍳 Kochmodus</a>
       <a class="btn" href={pdfHref} target="_blank" rel="noopener">Rezeptkarte</a>
-      <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
-      <form method="POST" action="?/delete" use:enhance onsubmit={confirmDelete}>
-        <button class="btn danger" type="submit">Löschen</button>
-      </form>
-    </div>
-  </div>
-
-  {#if data.canAdmin}
-    <div class="admin-box">
-      <button class="admin-toggle" onclick={() => (showImagePanel = !showImagePanel)} aria-expanded={showImagePanel}>
-        🖼️ Bild neu generieren <span class="ch">{showImagePanel ? "▾" : "▸"}</span>
-      </button>
-      {#if showImagePanel}
-        <form
-          method="POST"
-          action="?/regenerateImage"
-          use:enhance={() => {
-            regenerating = true;
-            return async ({ update }) => {
-              await update({ reset: false });
-              regenerating = false;
-            };
-          }}
-        >
-          <label for="imgsubj">Bild-Motiv (englisch, kurz)</label>
-          <textarea
-            id="imgsubj"
-            name="image_subject"
-            bind:value={imageSubject}
-            rows="2"
-            placeholder="z. B. a slice of apple pie with lattice crust"
-          ></textarea>
-          <div class="admin-row">
-            <button class="btn" type="submit" disabled={regenerating}>
-              {regenerating ? "Generiere …" : "Neu generieren"}
-            </button>
-            <span class="hint">Erzeugt ein neues Aquarell (dauert einige Sekunden).</span>
-          </div>
-          {#if form?.imgError}<p class="msg err">{form.imgError}</p>{/if}
-          {#if form?.imgOk}<p class="msg ok">{form.imgOk}</p>{/if}
+      {#if data.canManage}
+        <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
+        <form method="POST" action="?/delete" use:enhance onsubmit={confirmDelete}>
+          <button class="btn danger" type="submit">Löschen</button>
         </form>
       {/if}
     </div>
-  {/if}
+  </div>
 
   <article class="recipe">
     <header class="rhead">
@@ -105,6 +69,7 @@
           {#if r.difficulty}<span class="chip">{r.difficulty}</span>{/if}
           {#if scaledServings}<span class="chip">{scaledServings} Portion{scaledServings === "1" ? "" : "en"}</span>{/if}
           {#each timeChips as [label, val] (label)}<span class="chip">{label}: {val}</span>{/each}
+          {#if data.createdByName}<span class="chip">👤 {data.createdByName}</span>{/if}
         </div>
       </div>
     </header>
@@ -147,6 +112,44 @@
       <p class="tags">{#each r.tags as tag (tag)}<span class="tag">#{tag}</span>{/each}</p>
     {/if}
   </article>
+
+  {#if data.canAdmin}
+    <div class="admin-box">
+      <button class="admin-toggle" onclick={() => (showImagePanel = !showImagePanel)} aria-expanded={showImagePanel}>
+        🖼️ Admin: Bild neu generieren <span class="ch">{showImagePanel ? "▾" : "▸"}</span>
+      </button>
+      {#if showImagePanel}
+        <form
+          method="POST"
+          action="?/regenerateImage"
+          use:enhance={() => {
+            regenerating = true;
+            return async ({ update }) => {
+              await update({ reset: false });
+              regenerating = false;
+            };
+          }}
+        >
+          <label for="imgsubj">Bild-Motiv (englisch, kurz)</label>
+          <textarea
+            id="imgsubj"
+            name="image_subject"
+            bind:value={imageSubject}
+            rows="2"
+            placeholder="z. B. a slice of apple pie with lattice crust"
+          ></textarea>
+          <div class="admin-row">
+            <button class="btn" type="submit" disabled={regenerating}>
+              {regenerating ? "Generiere …" : "Neu generieren"}
+            </button>
+            <span class="hint">Erzeugt ein neues Aquarell (dauert einige Sekunden).</span>
+          </div>
+          {#if form?.imgError}<p class="msg err">{form.imgError}</p>{/if}
+          {#if form?.imgOk}<p class="msg ok">{form.imgOk}</p>{/if}
+        </form>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -176,7 +179,7 @@
   }
 
   .admin-box {
-    margin-bottom: 1rem;
+    margin-top: 1.2rem;
     border: 2.5px dashed var(--ink);
     border-radius: var(--radius);
     padding: 0.6rem 0.9rem;

@@ -7,17 +7,26 @@ import {
 } from "$core/services/library.ts";
 import { queueStepMapping } from "$core/services/step-map.ts";
 import { enqueueUpsert } from "$core/services/sync-queue.ts";
+import { canManageRecipe } from "$core/services/users.ts";
 import { error, fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = ({ params }) => {
+export const load: PageServerLoad = ({ params, locals }) => {
   const r = getRecipeBySlug(params.slug);
   if (!r) throw error(404, "Rezept nicht gefunden");
+  if (!canManageRecipe(locals.user, r.createdBy)) {
+    throw error(403, "Keine Berechtigung, dieses Rezept zu bearbeiten.");
+  }
   return { slug: r.slug, title: r.meta.title, markdown: r.markdownBody };
 };
 
 export const actions: Actions = {
   default: async ({ request, params, locals }) => {
+    const existing = getRecipeBySlug(params.slug);
+    if (!existing) throw error(404, "Rezept nicht gefunden");
+    if (!canManageRecipe(locals.user, existing.createdBy)) {
+      throw error(403, "Keine Berechtigung, dieses Rezept zu bearbeiten.");
+    }
     const markdown = String((await request.formData()).get("markdown") ?? "");
     let recipe;
     try {

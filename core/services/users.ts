@@ -9,6 +9,20 @@ export type UserStatus = "invited" | "approved" | "blocked";
 export const isAdmin = (u?: { role: UserRole } | null): boolean =>
   u?.role === "owner" || u?.role === "admin";
 
+/**
+ * Darf der Nutzer dieses Rezept bearbeiten/löschen?
+ * Admins dürfen alles; sonst nur eigene Rezepte. Ownerlose Rezepte (createdBy null)
+ * sind ausschließlich Admins vorbehalten.
+ */
+export const canManageRecipe = (
+  u: { id: number; role: UserRole } | null | undefined,
+  createdBy?: number | null,
+): boolean => {
+  if (!u) return false;
+  if (isAdmin(u)) return true;
+  return createdBy != null && createdBy === u.id;
+};
+
 export interface User {
   id: number;
   googleSub?: string;
