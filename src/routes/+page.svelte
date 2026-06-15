@@ -376,6 +376,7 @@
   }
   .switch .knob::after {
     content: "";
+    box-sizing: border-box;
     position: absolute;
     top: 50%;
     left: 2px;
