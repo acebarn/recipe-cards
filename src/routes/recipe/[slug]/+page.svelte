@@ -41,7 +41,7 @@
     <div class="tools">
       <Stepper bind:value={scale} />
       <a class="btn" href={cookHref}>🍳 Kochmodus</a>
-      <a class="btn" href={pdfHref} target="_blank" rel="noopener">PDF</a>
+      <a class="btn" href={pdfHref} target="_blank" rel="noopener">Rezeptkarte</a>
       <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
       <form method="POST" action="?/delete" use:enhance onsubmit={confirmDelete}>
         <button class="btn danger" type="submit">Löschen</button>
