@@ -4,6 +4,7 @@
   import { fade, slide } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
   import { regionEmoji } from "$core/region.ts";
+  import { categoryRank } from "$core/category.ts";
   import type { PageData } from "./$types";
 
   // Out-Transition: Karte aus dem Layout-Fluss lösen (absolut an ihren
@@ -71,7 +72,11 @@
   });
 
   // Chip-Optionen aus den Daten
-  let categories = $derived([...new Set(data.recipes.map((r) => r.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de")));
+  let categories = $derived(
+    [...new Set(data.recipes.map((r) => r.category).filter(Boolean))].sort(
+      (a, b) => categoryRank(a) - categoryRank(b) || a.localeCompare(b, "de"),
+    ),
+  );
   let difficulties = $derived(
     ["Einfach", "Mittel", "Schwer"].filter((d) => data.recipes.some((r) => r.difficulty === d)),
   );
@@ -117,7 +122,7 @@
     }
     return [...map.entries()]
       .map(([cat, recipes]) => [cat, [...recipes].sort(byTitle)] as const)
-      .sort((a, b) => a[0].localeCompare(b[0], "de"));
+      .sort((a, b) => categoryRank(a[0]) - categoryRank(b[0]) || a[0].localeCompare(b[0], "de"));
   });
 
   const reset = () => {

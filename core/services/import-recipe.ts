@@ -44,7 +44,12 @@ Regeln:
 - servings: ganze Zahl (Portionen/Stück).
 - difficulty: genau eines von easy, medium, hard – oder leer.
 - region: Herkunft des Gerichts als deutsches Substantiv – ein Land (z.B. Italien, Japan, Mexiko), ein Kontinent oder eine Region (z.B. Levantinisch, Mediterran, Nordafrikanisch). Nur angeben, wenn sinnvoll erkennbar, sonst leer.
-- category: ein kurzes Schlagwort, bevorzugt eines von: grundwissen, kochen, backen, salate, saucen, desserts, getränke.
+- category: GENAU EINEN dieser Keys (kleingeschrieben, nach Gang/Gericht-Typ):
+  fruehstueck (Frühstück/Brunch), vorspeisen, snacks (Fingerfood/Streetfood),
+  salate, suppen, eintoepfe (Eintopf/Chili/Gulasch), hauptgerichte (warmes Hauptgericht),
+  beilagen (Beilage/Püree/Sättigung), grundrezepte (Basis wie Reis/Teig/Hummus),
+  saucen (Saucen & Dips), brot (Brot/Pizzateig/herzhafte Kuchen wie Zwiebelkuchen),
+  kuchen (süße Backwaren/Kuchen/Gebäck), desserts (Süßspeisen/Nachtisch), getraenke.
 - tags: 1-4 kurze Schlagwörter.
 - equipment: benötigte Geräte/Gefäße, je Eintrag eine Zeile.
 - source_url: die Quell-URL, falls angegeben oder im Inhalt erkennbar, sonst leer.
