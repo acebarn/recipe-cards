@@ -50,6 +50,9 @@
   let mineOnly = $state(false);
   let veganOnly = $state(false);
   let vegetarianOnly = $state(false);
+  // Auf Mobil hinter einem Konfig-Button versteckt
+  let showScopes = $state(false);
+  let activeScopes = $derived((mineOnly ? 1 : 0) + (vegetarianOnly ? 1 : 0) + (veganOnly ? 1 : 0));
 
   // Ansicht + Scopes pro Gerät merken
   if (browser) {
@@ -151,18 +154,23 @@
     {/if}
     </div>
 
-    <div class="scopes">
-      {#if data.meId != null}
-        <button class="switch" class:on={mineOnly} role="switch" aria-checked={mineOnly} onclick={() => (mineOnly = !mineOnly)}>
-          <span class="knob"></span><span class="sw-lbl">Nur meine</span>
+    <div class="scope-wrap">
+      <button class="scope-toggle" class:active={showScopes} aria-expanded={showScopes} onclick={() => (showScopes = !showScopes)}>
+        ⚙️ Optionen{#if activeScopes}<span class="badge">{activeScopes}</span>{/if}<span class="chev">{showScopes ? "▾" : "▸"}</span>
+      </button>
+      <div class="scopes" class:open={showScopes}>
+        {#if data.meId != null}
+          <button class="switch" class:on={mineOnly} role="switch" aria-checked={mineOnly} onclick={() => (mineOnly = !mineOnly)}>
+            <span class="knob"></span><span class="sw-lbl">Nur meine</span>
+          </button>
+        {/if}
+        <button class="switch veg" class:on={vegetarianOnly} role="switch" aria-checked={vegetarianOnly} onclick={() => (vegetarianOnly = !vegetarianOnly)}>
+          <span class="knob"></span><span class="sw-lbl">🥕 Vegetarisch</span>
         </button>
-      {/if}
-      <button class="switch veg" class:on={vegetarianOnly} role="switch" aria-checked={vegetarianOnly} onclick={() => (vegetarianOnly = !vegetarianOnly)}>
-        <span class="knob"></span><span class="sw-lbl">🥕 Vegetarisch</span>
-      </button>
-      <button class="switch vegan" class:on={veganOnly} role="switch" aria-checked={veganOnly} onclick={() => (veganOnly = !veganOnly)}>
-        <span class="knob"></span><span class="sw-lbl">🌱 Vegan</span>
-      </button>
+        <button class="switch vegan" class:on={veganOnly} role="switch" aria-checked={veganOnly} onclick={() => (veganOnly = !veganOnly)}>
+          <span class="knob"></span><span class="sw-lbl">🌱 Vegan</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -335,19 +343,77 @@
   .filterbar .filtertabs {
     flex: 1 1 auto;
   }
+  .scope-wrap {
+    flex: none;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
   .scopes {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    flex: none;
+  }
+  /* Konfig-Button nur auf Mobil */
+  .scope-toggle {
+    display: none;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.5rem;
+    padding: 0 0.85rem;
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    background: #fff;
+    box-shadow: 3px 3px 0 var(--ink);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .scope-toggle.active {
+    box-shadow: 3px 3px 0 var(--accent);
+    transform: translate(-1px, -1px);
+  }
+  .scope-toggle .chev {
+    color: var(--muted);
+  }
+  .scope-toggle .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.2rem;
+    height: 1.2rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.72rem;
   }
   @media (max-width: 680px) {
     .filterbar {
       flex-direction: column;
       align-items: stretch;
     }
-    .scopes {
+    .scope-wrap {
       order: -1; /* oberhalb der Filter-Buttons */
+      margin-left: 0;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .scope-toggle {
+      display: inline-flex;
+      align-self: flex-start;
+    }
+    .scopes {
+      display: none;
+    }
+    .scopes.open {
+      display: flex;
+      margin-top: 0.1rem;
     }
   }
   .switch {
