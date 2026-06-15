@@ -71,9 +71,18 @@
   };
   let tokens = $derived(query.toLowerCase().split(/\s+/).filter(Boolean));
 
+  // Globale Scopes (Toggles): wirken auf alles (Neu-Streifen + Gruppen).
+  let mineOnly = $state(false);
+  let veganOnly = $state(false);
+  let scoped = $derived(
+    data.recipes.filter(
+      (r) => (!mineOnly || (data.meId != null && r.createdBy === data.meId)) && (!veganOnly || r.vegan),
+    ),
+  );
+
   let filtering = $derived(!!(tokens.length || cat || diff || timeBucket));
   let filtered = $derived(
-    data.recipes.filter(
+    scoped.filter(
       (r) =>
         (!cat || r.category === cat) &&
         (!diff || r.difficulty === diff) &&
@@ -82,7 +91,7 @@
     ),
   );
   const byTitle = (a: R, b: R) => a.title.localeCompare(b.title, "de");
-  let newest = $derived([...data.recipes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6));
+  let newest = $derived([...scoped].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6));
   // Gruppen immer aus dem gefilterten Set — so wird in-place gefiltert.
   let groups = $derived.by(() => {
     const map = new Map<string, R[]>();
@@ -112,6 +121,15 @@
       <button class:active={view === "grid"} onclick={() => (view = "grid")} aria-label="Kacheln" title="Kacheln">▦</button>
       <button class:active={view === "list"} onclick={() => (view = "list")} aria-label="Liste" title="Liste">☰</button>
     </div>
+  </div>
+
+  <div class="scopes">
+    <button class="switch" class:on={mineOnly} role="switch" aria-checked={mineOnly} onclick={() => (mineOnly = !mineOnly)}>
+      <span class="knob"></span><span class="sw-lbl">Nur meine Rezepte</span>
+    </button>
+    <button class="switch vegan" class:on={veganOnly} role="switch" aria-checked={veganOnly} onclick={() => (veganOnly = !veganOnly)}>
+      <span class="knob"></span><span class="sw-lbl">🌱 Vegan</span>
+    </button>
   </div>
 
   <div class="filtertabs">
@@ -166,15 +184,15 @@
   <p class="count">{filtered.length} Treffer · <button class="linkbtn" onclick={reset}>zurücksetzen</button></p>
 {/if}
 
-{#if !filtering}
+{#if !filtering && newest.length}
   <section transition:fade={{ duration: 350 }}>
     <h2 class="cat-heading" style={`--c: ${colorAt(0)}`}><span class="mark"></span>Neu<span class="arrow">→</span></h2>
     {@render items(newest)}
   </section>
 {/if}
 
-{#if filtering && filtered.length === 0}
-  <p class="empty">Keine Rezepte gefunden.</p>
+{#if filtered.length === 0}
+  <p class="empty">{mineOnly && !filtering ? "Du hast noch keine eigenen Rezepte." : "Keine Rezepte gefunden."}</p>
 {/if}
 
 {#each groups as [category, recipes], gi (category)}
@@ -285,6 +303,58 @@
   .viewtoggle button.active {
     background: var(--accent);
     color: #fff;
+  }
+
+  /* Scope-Switches */
+  .scopes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+    border: 2.5px solid var(--ink);
+    border-radius: 999px;
+    background: #fff;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .switch .knob {
+    width: 36px;
+    height: 20px;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--paper);
+    position: relative;
+    flex: none;
+    transition: background 0.15s;
+  }
+  .switch .knob::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s;
+  }
+  .switch.on .knob {
+    background: var(--blue);
+  }
+  .switch.vegan.on .knob {
+    background: #3aaa5e;
+  }
+  .switch.on .knob::after {
+    transform: translateX(16px);
   }
 
   /* Filter-Tabs: farbig unterscheidbar, klappen Gruppen aus */

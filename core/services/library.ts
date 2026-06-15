@@ -374,6 +374,10 @@ export interface RecipeIndexEntry {
   totalMinutes: number | null;
   servings: number | null;
   tags: string[];
+  /** true, wenn als vegan getaggt oder im Titel als vegan ausgewiesen. */
+  vegan: boolean;
+  /** Eigentümer-User-ID (für „nur meine Rezepte"); null = ownerlos. */
+  createdBy: number | null;
   image: string | null;
   createdAt: string;
   /** Zutaten als kleingeschriebener Text (für Restefest-Matching). */
@@ -393,6 +397,10 @@ export function recipeIndex(): RecipeIndexEntry[] {
     totalMinutes: totalMinutes(r.meta.prep_time, r.meta.cook_time, r.meta.rest_time),
     servings: r.meta.servings ?? null,
     tags: r.meta.tags ?? [],
+    vegan:
+      (r.meta.tags ?? []).some((t) => t.trim().toLowerCase() === "vegan") ||
+      /\bvegan/i.test(r.meta.title),
+    createdBy: r.createdBy ?? null,
     image: r.imageFilename ?? null,
     createdAt: r.createdAt,
     ingredients: flattenIngredients(r.ingredients).join("\n").toLowerCase(),
