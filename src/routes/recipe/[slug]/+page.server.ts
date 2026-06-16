@@ -7,6 +7,8 @@ import { themeFor } from "$core/theme.ts";
 import { getRecipeBySlug, softDeleteRecipe, updateRecipe } from "$core/services/library.ts";
 import { generateAndStoreImage } from "$core/services/image-store.ts";
 import { enqueueDelete, enqueueUpsert } from "$core/services/sync-queue.ts";
+import { getBringProvider } from "$core/services/shopping/account.ts";
+import { addRecipeIngredients } from "$core/services/shopping/add-recipe.ts";
 import { canManageRecipe, getUserById, isAdmin } from "$core/services/users.ts";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { existsSync } from "node:fs";
@@ -122,5 +124,36 @@ export const actions: Actions = {
     }
     enqueueUpsert(params.slug);
     return { imgOk: "Neues Bild generiert." };
+  },
+
+  // Zutaten (skaliert) auf die persönliche Bring-Einkaufsliste schieben.
+  addToList: async ({ request, params, locals }) => {
+    if (!locals.user) throw error(401, "Nicht angemeldet.");
+    const r = getRecipeBySlug(params.slug);
+    if (!r) throw error(404, "Rezept nicht gefunden");
+
+    const provider = getBringProvider(locals.user.id);
+    if (!provider) {
+      return fail(400, {
+        listError: "Erst ein Bring-Konto unter „🛒 Einkaufsliste“ verknüpfen.",
+      });
+    }
+
+    const raw = Number(String((await request.formData()).get("scale") ?? "1").replace(",", "."));
+    const scale = Number.isFinite(raw) && raw > 0 ? raw : 1;
+
+    try {
+      const { added, merged, skipped } = await addRecipeIngredients(
+        provider,
+        locals.user.id,
+        r.ingredients,
+        scale,
+      );
+      const parts = [`${added} hinzugefügt`, `${merged} zusammengeführt`];
+      if (skipped) parts.push(`${skipped} Standardzutaten übersprungen`);
+      return { listOk: parts.join(", ") + "." };
+    } catch (e) {
+      return fail(502, { listError: `Bring-Fehler: ${(e as Error).message}` });
+    }
   },
 };

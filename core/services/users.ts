@@ -213,6 +213,8 @@ export function deleteUser(id: number): void {
     db.prepare("UPDATE recipes SET updated_by = NULL WHERE updated_by = ?").run(id);
     db.prepare("UPDATE users SET invited_by = NULL WHERE invited_by = ?").run(id);
     db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM bring_accounts WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM standard_ingredients WHERE user_id = ?").run(id);
     db.prepare("DELETE FROM users WHERE id = ?").run(id);
   });
   tx();

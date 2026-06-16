@@ -119,4 +119,30 @@ CREATE TABLE audit_log (
     id: "002_recipe_region",
     sql: `ALTER TABLE recipes ADD COLUMN region TEXT;`,
   },
+  {
+    id: "003_shopping",
+    sql: `
+-- Pro-Nutzer verknüpftes Bring!-Konto (Passwort verschlüsselt, nie im Klartext).
+CREATE TABLE bring_accounts (
+  user_id    INTEGER PRIMARY KEY REFERENCES users(id),
+  email      TEXT NOT NULL,            -- Bring-Login-E-Mail
+  secret     TEXT NOT NULL,            -- verschlüsseltes Passwort (AES-256-GCM)
+  list_uuid  TEXT,                     -- gewählte Bring-Liste
+  list_name  TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Standardzutaten je Nutzer (z. B. Salz) – werden beim "Auf die Liste" weggelassen.
+CREATE TABLE standard_ingredients (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  name       TEXT NOT NULL,
+  normalized TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(user_id, normalized)
+);
+CREATE INDEX idx_standard_user ON standard_ingredients(user_id);
+`,
+  },
 ];

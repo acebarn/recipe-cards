@@ -26,6 +26,7 @@
   "dependencies": {
     "@auth/sveltekit": "^1.11.2",
     "better-sqlite3": "^12.10.0",
+    "bring-shopping": "^2.0.1",
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0",
     "yaml": "^2.7.0"

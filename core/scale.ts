@@ -20,7 +20,7 @@ const FRACTION_CHARS = Object.keys(UNICODE_FRACTIONS).join("");
 
 // Erkennt eine führende Menge: gemischte Zahl (1½), Unicode-Bruch (½),
 // ASCII-Bruch (1/2), Dezimalzahl (1,5 / 1.5) oder ganze Zahl (250).
-const QUANTITY = new RegExp(
+export const QUANTITY = new RegExp(
   "^(\\s*)(" +
     `\\d+\\s*[${FRACTION_CHARS}]` + // 1½
     "|" +
@@ -34,7 +34,7 @@ const QUANTITY = new RegExp(
     ")(\\s*)(.*)$",
 );
 
-function parseQuantity(token: string): number | null {
+export function parseQuantity(token: string): number | null {
   const t = token.trim();
 
   // gemischte Zahl mit Unicode-Bruch, z.B. "1½"

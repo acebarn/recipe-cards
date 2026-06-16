@@ -9,7 +9,7 @@ export function flattenIngredients(sections: IngredientSection[]): string[] {
   return sections.flatMap((s) => s.items);
 }
 
-const UNITS = new Set([
+export const UNITS = new Set([
   "g", "kg", "mg", "l", "ml", "cl", "el", "tl", "msp", "prise", "prisen", "pck",
   "dose", "dosen", "bund", "stück", "stk", "zehe", "zehen", "tasse", "tassen",
   "blatt", "blätter", "scheibe", "scheiben", "becher", "glas", "päckchen",

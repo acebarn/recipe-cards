@@ -47,6 +47,10 @@
       <Stepper bind:value={scale} />
       <a class="btn" href={cookHref}>🍳 Kochmodus</a>
       <a class="btn" href={pdfHref} target="_blank" rel="noopener">Rezeptkarte</a>
+      <form method="POST" action="?/addToList" use:enhance>
+        <input type="hidden" name="scale" value={scale} />
+        <button class="btn" type="submit">🛒 Auf die Einkaufsliste</button>
+      </form>
       {#if data.canManage}
         <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
         <form method="POST" action="?/delete" use:enhance onsubmit={confirmDelete}>
@@ -55,6 +59,9 @@
       {/if}
     </div>
   </div>
+
+  {#if form?.listError}<p class="msg err">{form.listError}</p>{/if}
+  {#if form?.listOk}<p class="msg ok">🛒 {form.listOk}</p>{/if}
 
   <article class="recipe">
     <header class="rhead">

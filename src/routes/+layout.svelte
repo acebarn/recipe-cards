@@ -31,6 +31,7 @@
     <nav class="nav" class:open={menuOpen}>
       <div class="nav-actions">
         <a class="navbtn" href="/restefest" onclick={close}>🥕 Restefest</a>
+        <a class="navbtn" href="/einkaufsliste" onclick={close}>🛒 Einkaufsliste</a>
         <a class="navbtn" href="/statistik" onclick={close}>📊 Statistik</a>
         <a class="navbtn" href="/add" onclick={close}>+ Hinzufügen</a>
         {#if data.user.role === "owner" || data.user.role === "admin"}<a class="navbtn" href="/admin/members" onclick={close}>👥 Benutzer</a>{/if}
