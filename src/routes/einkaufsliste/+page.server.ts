@@ -28,8 +28,26 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
   }
 
-  const provider = getBringProvider(user.id)!;
   const standard = listStandard(user.id);
+  let provider;
+  try {
+    provider = getBringProvider(user.id)!;
+  } catch {
+    // Entschlüsselung des Bring-Passworts gescheitert (z. B. nach AUTH_SECRET-Rotation).
+    return {
+      linked: true as const,
+      hasList: true as const,
+      email: acc.email,
+      listName: acc.listName ?? "",
+      groups: [],
+      doneItems: [],
+      doneHidden: 0,
+      standard,
+      error:
+        "Dein gespeichertes Bring-Passwort konnte nicht entschlüsselt werden (evtl. nach einem Server-Update). Bitte das Konto trennen und neu verknüpfen.",
+    };
+  }
+  const DONE_LIMIT = 30; // Bring-„recently" kann sehr lang werden → nur die neuesten zeigen.
   try {
     const items = await provider.list();
     const open = items.filter((i) => !i.done);
@@ -39,7 +57,8 @@ export const load: PageServerLoad = async ({ locals }) => {
         .filter((i) => foodCategory(i.name) === aisle)
         .map((i) => ({ name: i.name, quantity: i.quantity })),
     })).filter((g) => g.items.length > 0);
-    const doneItems = items.filter((i) => i.done).map((i) => ({ name: i.name, quantity: i.quantity }));
+    const done = items.filter((i) => i.done);
+    const doneItems = done.slice(0, DONE_LIMIT).map((i) => ({ name: i.name, quantity: i.quantity }));
     return {
       linked: true as const,
       hasList: true as const,
@@ -47,6 +66,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       listName: acc.listName ?? "",
       groups,
       doneItems,
+      doneHidden: Math.max(0, done.length - DONE_LIMIT),
       standard,
     };
   } catch (e) {
@@ -57,6 +77,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       listName: acc.listName ?? "",
       groups: [],
       doneItems: [],
+      doneHidden: 0,
       standard,
       error: (e as Error).message,
     };

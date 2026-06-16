@@ -147,6 +147,9 @@
           </li>
         {/each}
       </ul>
+      {#if data.doneHidden > 0}
+        <p class="hint">… und {data.doneHidden} weitere ältere Einträge (in Bring sichtbar).</p>
+      {/if}
     </details>
   {/if}
 

@@ -13,6 +13,7 @@
   let showImagePanel = $state(false);
   let imageSubject = $state(untrack(() => data.imageSubject));
   let regenerating = $state(false);
+  let addingToList = $state(false);
 
   let scale = $state(1);
   let pdfHref = $derived(`/recipe/${r.slug}/pdf${scale !== 1 ? `?scale=${scale}` : ""}`);
@@ -47,9 +48,21 @@
       <Stepper bind:value={scale} />
       <a class="btn" href={cookHref}>🍳 Kochmodus</a>
       <a class="btn" href={pdfHref} target="_blank" rel="noopener">Rezeptkarte</a>
-      <form method="POST" action="?/addToList" use:enhance>
+      <form
+        method="POST"
+        action="?/addToList"
+        use:enhance={() => {
+          addingToList = true;
+          return async ({ update }) => {
+            await update();
+            addingToList = false;
+          };
+        }}
+      >
         <input type="hidden" name="scale" value={scale} />
-        <button class="btn" type="submit">🛒 Auf die Einkaufsliste</button>
+        <button class="btn" type="submit" disabled={addingToList}>
+          {addingToList ? "… wird hinzugefügt" : "🛒 Auf die Einkaufsliste"}
+        </button>
       </form>
       {#if data.canManage}
         <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
