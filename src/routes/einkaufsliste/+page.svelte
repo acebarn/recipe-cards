@@ -26,49 +26,30 @@
 {#if form?.ok}<p class="msg ok">{form.ok}</p>{/if}
 
 {#if !data.linked}
-  <!-- 1) Konto noch nicht verknüpft -->
+  <!-- Konto noch nicht verknüpft → in den Einstellungen verbinden -->
   <div class="card">
     <h3>Bring!-Konto verknüpfen</h3>
     <p class="hint">
-      Verbinde dein eigenes Bring-Konto. Dein Passwort wird verschlüsselt gespeichert und nur
-      genutzt, um in deinem Namen Einträge zu lesen und zu schreiben.
+      Verbinde dein Bring-Konto unter <a href="/einstellungen">⚙️ Einstellungen</a>, um deine
+      Einkaufsliste zu sehen und Zutaten aus Rezepten hinzuzufügen.
     </p>
-    <form method="POST" action="?/linkAccount" use:enhance class="stack">
-      <input type="email" name="email" placeholder="Bring-E-Mail" required />
-      <input type="password" name="password" placeholder="Bring-Passwort" required />
-      <button class="btn primary" type="submit">Verknüpfen</button>
-    </form>
   </div>
 {:else if !data.hasList}
-  <!-- 2) Verknüpft, aber Liste wählen -->
+  <!-- Verknüpft, aber keine Liste gewählt → in den Einstellungen wählen -->
   <div class="card">
     <h3>Liste wählen</h3>
-    <p class="hint">Verknüpft als <strong>{data.email}</strong>. Wähle die Bring-Liste:</p>
-    {#if data.error}<p class="msg err">{data.error}</p>{/if}
-    <div class="stack">
-      {#each data.lists as l (l.listUuid)}
-        <form method="POST" action="?/selectList" use:enhance class="row">
-          <input type="hidden" name="listUuid" value={l.listUuid} />
-          <input type="hidden" name="listName" value={l.name} />
-          <span class="grow">{l.name}</span>
-          <button class="btn" type="submit">Aktivieren</button>
-        </form>
-      {/each}
-    </div>
-    <form method="POST" action="?/unlink" use:enhance class="trennen">
-      <button class="btn danger" type="submit">Konto trennen</button>
-    </form>
+    <p class="hint">
+      Verknüpft als <strong>{data.email}</strong>. Wähle deine Bring-Liste unter
+      <a href="/einstellungen">⚙️ Einstellungen</a>.
+    </p>
   </div>
 {:else}
-  <!-- 3) Verknüpft + Liste aktiv -->
+  <!-- Verknüpft + Liste aktiv -->
   <div class="account-bar">
-    <span>Liste <strong>{data.listName}</strong> · {data.email}</span>
+    <span>Liste <strong>{data.listName}</strong></span>
     <span class="bar-actions">
       <button class="btn" onclick={() => invalidateAll()}>Aktualisieren</button>
       <label class="auto"><input type="checkbox" bind:checked={autoRefresh} /> Auto</label>
-      <form method="POST" action="?/unlink" use:enhance>
-        <button class="btn danger" type="submit">Trennen</button>
-      </form>
     </span>
   </div>
 
@@ -234,28 +215,9 @@
   .hint.empty {
     margin-top: 1rem;
   }
-  .stack {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-  .stack input {
-    padding: 0.6rem 0.8rem;
-    border: 2.5px solid var(--ink);
-    border-radius: var(--radius);
-    font: inherit;
-    background: #fff;
-  }
-  .row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-  }
-  .grow {
-    flex: 1;
-  }
-  .trennen {
-    margin-top: 0.9rem;
+  .hint a {
+    color: var(--accent, var(--blue));
+    font-weight: 700;
   }
   .account-bar {
     display: flex;
@@ -274,9 +236,6 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-  }
-  .bar-actions form {
-    margin: 0;
   }
   .auto {
     display: flex;

@@ -1,12 +1,5 @@
 import { AISLE_ORDER, foodCategory } from "$core/food-category.ts";
-import {
-  getBringAccount,
-  getBringProvider,
-  linkBringAccount,
-  listBringLists,
-  setBringList,
-  unlinkBringAccount,
-} from "$core/services/shopping/account.ts";
+import { getBringAccount, getBringProvider } from "$core/services/shopping/account.ts";
 import { addStandard, listStandard, removeStandard } from "$core/services/shopping/standard.ts";
 import { error, fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
@@ -18,14 +11,9 @@ export const load: PageServerLoad = async ({ locals }) => {
   const acc = getBringAccount(user.id);
   if (!acc) return { linked: false as const };
 
-  // Verknüpft, aber noch keine Liste gewählt → Auswahl anbieten.
+  // Verknüpft, aber noch keine Liste gewählt → in den Einstellungen wählen.
   if (!acc.listUuid) {
-    try {
-      const lists = await listBringLists(user.id);
-      return { linked: true as const, hasList: false as const, email: acc.email, lists };
-    } catch (e) {
-      return { linked: true as const, hasList: false as const, email: acc.email, lists: [], error: (e as Error).message };
-    }
+    return { linked: true as const, hasList: false as const, email: acc.email };
   }
 
   const standard = listStandard(user.id);
@@ -90,37 +78,6 @@ function requireUser(locals: App.Locals): number {
 }
 
 export const actions: Actions = {
-  linkAccount: async ({ request, locals }) => {
-    const userId = requireUser(locals);
-    const data = await request.formData();
-    const email = String(data.get("email") ?? "").trim();
-    const password = String(data.get("password") ?? "");
-    if (!email || !password) return fail(400, { error: "E-Mail und Passwort angeben." });
-    try {
-      const lists = await linkBringAccount(userId, email, password);
-      // Komfort: gibt es genau eine Liste, direkt aktivieren.
-      if (lists.length === 1) setBringList(userId, lists[0].listUuid, lists[0].name);
-      return { ok: "Bring-Konto verknüpft." };
-    } catch (e) {
-      return fail(400, { error: (e as Error).message });
-    }
-  },
-
-  selectList: async ({ request, locals }) => {
-    const userId = requireUser(locals);
-    const data = await request.formData();
-    const listUuid = String(data.get("listUuid") ?? "");
-    const listName = String(data.get("listName") ?? "");
-    if (!listUuid) return fail(400, { error: "Keine Liste gewählt." });
-    setBringList(userId, listUuid, listName);
-    return { ok: `Liste „${listName}" aktiviert.` };
-  },
-
-  unlink: async ({ locals }) => {
-    unlinkBringAccount(requireUser(locals));
-    return { ok: "Bring-Konto getrennt." };
-  },
-
   addItem: async ({ request, locals }) => {
     const userId = requireUser(locals);
     const data = await request.formData();
