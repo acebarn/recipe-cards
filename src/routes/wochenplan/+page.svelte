@@ -46,7 +46,8 @@
 
   <div class="weeknav">
     <a class="btn" href={`?start=${data.prevStart}`}>‹</a>
-    <span class="wk">{data.weekLabel}</span>
+    <span class="wk">KW {data.kw}</span>
+    <span class="range">{data.weekLabel}</span>
     <a class="btn" href={`?start=${data.nextStart}`}>›</a>
     <a class="btn ghost" href={`?start=${data.thisStart}`}>Diese Woche</a>
     {#if data.calendarName}<span class="cal">{data.calendarName}</span>{/if}
@@ -59,10 +60,12 @@
         <button class="day-btn" class:active={activeDate === d.date} onclick={() => (activeDate = d.date)}>{d.label}</button>
       {/each}
     </div>
+    <div class="mealpick">
+      {#each data.meals as m (m.value)}
+        <button class="meal-slot" class:active={activeMeal === m.value} onclick={() => (activeMeal = m.value)}>{m.label}</button>
+      {/each}
+    </div>
     <div class="searchrow">
-      <select bind:value={activeMeal} aria-label="Mahlzeit">
-        {#each data.meals as m (m.value)}<option value={m.value}>{m.label}</option>{/each}
-      </select>
       <input class="search" type="search" bind:value={query} placeholder="Rezept suchen …" autocomplete="off" />
     </div>
     {#if query}
@@ -158,6 +161,14 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    background: var(--ink);
+    color: #fff;
+    padding: 0.15rem 0.55rem;
+    border-radius: var(--radius);
+  }
+  .weeknav .range {
+    color: var(--muted);
+    font-weight: 600;
   }
   .btn.ghost {
     background: #fff;
@@ -197,6 +208,28 @@
     background: var(--ink);
     color: #fff;
   }
+  /* Mahlzeit-Slots untereinander */
+  .mealpick {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.6rem;
+  }
+  .meal-slot {
+    text-align: left;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #fff;
+    padding: 0.4rem 0.7rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .meal-slot.active {
+    background: var(--accent, var(--blue));
+    color: #fff;
+  }
   .searchrow {
     display: flex;
     gap: 0.5rem;
@@ -208,14 +241,6 @@
     padding: 0.5rem 0.7rem;
     font: inherit;
     background: #fff;
-  }
-  select {
-    border: 2.5px solid var(--ink);
-    border-radius: var(--radius);
-    padding: 0 0.5rem;
-    font: inherit;
-    background: #fff;
-    font-weight: 600;
   }
   .recos {
     list-style: none;

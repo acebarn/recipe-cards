@@ -16,6 +16,17 @@ function mondayOf(d: Date): Date {
   return x;
 }
 
+/** ISO-Kalenderwoche (Mo-basiert). */
+function isoWeek(d: Date): number {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = (t.getUTCDay() + 6) % 7;
+  t.setUTCDate(t.getUTCDate() - day + 3); // Donnerstag dieser Woche
+  const firstThu = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  const fday = (firstThu.getUTCDay() + 6) % 7;
+  firstThu.setUTCDate(firstThu.getUTCDate() - fday + 3);
+  return 1 + Math.round((t.getTime() - firstThu.getTime()) / (7 * 864e5));
+}
+
 /** Zeit "HH:MM" → passende Mahlzeit (über die konfigurierten Zeiten), sonst null. */
 function mealFromTime(time: string, times: Record<Meal, string>): Meal | null {
   for (const m of MEALS) if (times[m] === time) return m;
@@ -70,6 +81,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       label: d.toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "numeric" }),
       events: eventsByDay[iso(d)] ?? [],
     })),
+    kw: isoWeek(days[0]),
     weekLabel: `${days[0].toLocaleDateString("de-DE", { day: "numeric", month: "short" })} – ${days[6].toLocaleDateString("de-DE", { day: "numeric", month: "short" })}`,
     prevStart,
     nextStart,
