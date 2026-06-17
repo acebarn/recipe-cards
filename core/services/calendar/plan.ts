@@ -49,18 +49,20 @@ export async function planMeal(input: PlanInput): Promise<PlanResult> {
   const s = getSettings(input.userId);
   if (!s.calendarId) throw new Error("Bitte zuerst unter „Kalender“ einen Kalender wählen.");
 
-  const start = s.times[input.meal];
-  const end = addMinutes(start, s.markerMinutes);
   const origin = (process.env.ORIGIN || "").replace(/\/$/, "");
+  const allDay = s.allDay[input.meal];
+  const start = s.times[input.meal];
 
   await insertEvent(input.userId, {
     calendarId: s.calendarId,
     summary: input.title,
     description: origin ? `${origin}/recipe/${input.slug}` : `Rezept: ${input.title}`,
-    startISO: `${input.date}T${start}:00`,
-    endISO: `${input.date}T${end}:00`,
     tz: s.tz,
     recurrence: buildRecurrence(input.recurrence ?? "none", input.until),
+    allDay,
+    date: input.date,
+    startTime: start,
+    endTime: addMinutes(start, s.markerMinutes),
   });
 
   return {

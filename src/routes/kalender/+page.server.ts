@@ -46,9 +46,13 @@ export const actions: Actions = {
     const userId = requireUser(locals);
     const data = await request.formData();
     const times: Partial<Record<Meal, string>> = {};
-    for (const m of MEALS) times[m] = String(data.get(m) ?? "");
+    const allDay: Partial<Record<Meal, boolean>> = {};
+    for (const m of MEALS) {
+      times[m] = String(data.get(m) ?? "");
+      allDay[m] = data.get(`${m}_allday`) != null;
+    }
     const marker = Number(data.get("marker") ?? 15);
-    setMealTimes(userId, times, marker);
+    setMealTimes(userId, times, allDay, marker);
     return { ok: "Zeiten gespeichert." };
   },
 

@@ -21,10 +21,19 @@ export interface EventInput {
   calendarId: string;
   summary: string;
   description: string;
-  startISO: string;
-  endISO: string;
   tz: string;
   recurrence?: string[]; // z.B. ["RRULE:FREQ=WEEKLY;INTERVAL=2"]
+  allDay: boolean;
+  date: string; // YYYY-MM-DD (Basistag)
+  startTime?: string; // HH:MM (nur bei zeitgebundenem Termin)
+  endTime?: string; // HH:MM
+}
+
+/** "2026-06-20" + 1 → "2026-06-21" (für das exklusive Ende von Ganztags-Terminen). */
+function addDays(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
 export class CalendarError extends Error {}
@@ -95,12 +104,14 @@ export async function listCalendars(userId: number): Promise<CalendarRef[]> {
 }
 
 export async function insertEvent(userId: number, ev: EventInput): Promise<{ id: string }> {
-  const body: Record<string, unknown> = {
-    summary: ev.summary,
-    description: ev.description,
-    start: { dateTime: ev.startISO, timeZone: ev.tz },
-    end: { dateTime: ev.endISO, timeZone: ev.tz },
-  };
+  const body: Record<string, unknown> = { summary: ev.summary, description: ev.description };
+  if (ev.allDay) {
+    body.start = { date: ev.date };
+    body.end = { date: addDays(ev.date, 1) }; // Ende ist exklusiv
+  } else {
+    body.start = { dateTime: `${ev.date}T${ev.startTime}:00`, timeZone: ev.tz };
+    body.end = { dateTime: `${ev.date}T${ev.endTime}:00`, timeZone: ev.tz };
+  }
   if (ev.recurrence?.length) body.recurrence = ev.recurrence;
   return api<{ id: string }>(userId, "POST", `/calendars/${encodeURIComponent(ev.calendarId)}/events`, body);
 }

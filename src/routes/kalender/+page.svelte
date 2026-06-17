@@ -18,6 +18,15 @@
   let calName = $derived(
     data.connected ? (data.calendars.find((c) => c.id === calId)?.summary ?? "") : "",
   );
+
+  // Ganztägig-Schalter je Mahlzeit (deaktiviert das jeweilige Zeitfeld).
+  let allDay = $state(
+    untrack(() =>
+      data.connected
+        ? { ...data.settings.allDay }
+        : { breakfast: false, lunch: false, dinner: false, snack: false },
+    ),
+  );
 </script>
 
 <svelte:head><title>Kalender · SCHMACKOFATZ</title></svelte:head>
@@ -62,13 +71,25 @@
     <form method="POST" action="?/setTimes" use:enhance>
       <div class="times">
         {#each MEALS as [key, label] (key)}
-          <label>{label}
-            <input type="time" name={key} value={data.settings.times[key as keyof typeof data.settings.times]} />
-          </label>
+          {@const mk = key as "breakfast" | "lunch" | "dinner" | "snack"}
+          <div class="meal-field">
+            <span class="meal-name">{label}</span>
+            <input
+              type="time"
+              name={key}
+              value={data.settings.times[mk]}
+              disabled={allDay[mk]}
+            />
+            <label class="allday">
+              <input type="checkbox" name={`${key}_allday`} bind:checked={allDay[mk]} />
+              ganztägig
+            </label>
+          </div>
         {/each}
-        <label>Dauer (Min)
+        <div class="meal-field">
+          <span class="meal-name">Dauer (Min)</span>
           <input type="number" name="marker" min="5" max="240" step="5" value={data.settings.markerMinutes} />
-        </label>
+        </div>
       </div>
       <button class="btn" type="submit">Zeiten speichern</button>
     </form>
@@ -138,13 +159,26 @@
     gap: 0.8rem;
     margin-bottom: 0.9rem;
   }
-  .times label {
+  .meal-field {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.25rem;
+  }
+  .meal-name {
     font-size: 0.78rem;
     font-weight: 600;
     color: var(--muted);
+  }
+  .allday {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  input:disabled {
+    opacity: 0.45;
   }
   select,
   input[type="time"],

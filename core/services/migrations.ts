@@ -173,4 +173,13 @@ CREATE TABLE calendar_settings (
 );
 `,
   },
+  {
+    id: "005_calendar_allday",
+    sql: `
+ALTER TABLE calendar_settings ADD COLUMN breakfast_allday INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE calendar_settings ADD COLUMN lunch_allday     INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE calendar_settings ADD COLUMN dinner_allday    INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE calendar_settings ADD COLUMN snack_allday     INTEGER NOT NULL DEFAULT 0;
+`,
+  },
 ];
