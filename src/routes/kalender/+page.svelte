@@ -89,7 +89,7 @@
               aria-checked={allDay[mk]}
               onclick={() => (allDay[mk] = !allDay[mk])}
             >
-              <span class="knob"></span><span class="sw-lbl">ganztägig</span>
+              <span class="sw-lbl">ganztägig</span><span class="knob"></span>
             </button>
             <input type="hidden" name={`${key}_allday`} value={allDay[mk] ? "1" : ""} />
           </div>
@@ -170,12 +170,20 @@
   .meal-field {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    align-items: stretch;
   }
   .meal-name {
     font-size: 0.78rem;
     font-weight: 600;
     color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+  .meal-field input {
+    width: 100%;
+  }
+  /* Zeitfeld + ganztägig-Schalter zu einem Block verbinden (eckig, gemeinsame Kante) */
+  .meal-field input[type="time"] {
+    border-radius: var(--radius) var(--radius) 0 0;
   }
   input:disabled {
     opacity: 0.45;
@@ -225,6 +233,13 @@
   }
   .switch.on .knob::after {
     left: calc(100% - 14px - 2px);
+  }
+  /* Im Mahlzeit-Feld: eckig, volle Breite, bündig unter dem Zeitfeld (gemeinsame Kante) */
+  .meal-field .switch {
+    width: 100%;
+    justify-content: space-between;
+    border-radius: 0 0 var(--radius) var(--radius);
+    margin-top: -2.5px;
   }
   select,
   input[type="time"],
