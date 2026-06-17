@@ -19,14 +19,20 @@
     data.connected ? (data.calendars.find((c) => c.id === calId)?.summary ?? "") : "",
   );
 
-  // Ganztägig-Schalter je Mahlzeit (deaktiviert das jeweilige Zeitfeld).
-  let allDay = $state(
-    untrack(() =>
-      data.connected
-        ? { ...data.settings.allDay }
-        : { breakfast: false, lunch: false, dinner: false, snack: false },
-    ),
-  );
+  // Lokaler, gebundener State für das Zeiten-Formular (verhindert das Leeren beim
+  // Speichern und hält die Schalter-Zustände). Init aus data, ohne reaktive Bindung.
+  type MealKey = "breakfast" | "lunch" | "dinner" | "snack";
+  const initTimes = () =>
+    data.connected
+      ? { ...data.settings.times }
+      : { breakfast: "08:00", lunch: "12:30", dinner: "18:30", snack: "15:30" };
+  const initAll = () =>
+    data.connected
+      ? { ...data.settings.allDay }
+      : { breakfast: false, lunch: false, dinner: false, snack: false };
+  let times = $state<Record<MealKey, string>>(untrack(initTimes));
+  let allDay = $state<Record<MealKey, boolean>>(untrack(initAll));
+  let marker = $state(untrack(() => (data.connected ? data.settings.markerMinutes : 15)));
 </script>
 
 <svelte:head><title>Kalender · SCHMACKOFATZ</title></svelte:head>
@@ -68,27 +74,29 @@
 
   <section class="card">
     <h3>Mahlzeit-Zeiten</h3>
-    <form method="POST" action="?/setTimes" use:enhance>
+    <form method="POST" action="?/setTimes" use:enhance={() => async ({ update }) => update({ reset: false })}>
       <div class="times">
         {#each MEALS as [key, label] (key)}
-          {@const mk = key as "breakfast" | "lunch" | "dinner" | "snack"}
+          {@const mk = key as MealKey}
           <div class="meal-field">
             <span class="meal-name">{label}</span>
-            <input
-              type="time"
-              name={key}
-              value={data.settings.times[mk]}
-              disabled={allDay[mk]}
-            />
-            <label class="allday">
-              <input type="checkbox" name={`${key}_allday`} bind:checked={allDay[mk]} />
-              ganztägig
-            </label>
+            <input type="time" name={key} bind:value={times[mk]} disabled={allDay[mk]} />
+            <button
+              type="button"
+              class="switch"
+              class:on={allDay[mk]}
+              role="switch"
+              aria-checked={allDay[mk]}
+              onclick={() => (allDay[mk] = !allDay[mk])}
+            >
+              <span class="knob"></span><span class="sw-lbl">ganztägig</span>
+            </button>
+            <input type="hidden" name={`${key}_allday`} value={allDay[mk] ? "1" : ""} />
           </div>
         {/each}
         <div class="meal-field">
           <span class="meal-name">Dauer (Min)</span>
-          <input type="number" name="marker" min="5" max="240" step="5" value={data.settings.markerMinutes} />
+          <input type="number" name="marker" min="5" max="240" step="5" bind:value={marker} />
         </div>
       </div>
       <button class="btn" type="submit">Zeiten speichern</button>
@@ -169,16 +177,54 @@
     font-weight: 600;
     color: var(--muted);
   }
-  .allday {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--muted);
-  }
   input:disabled {
     opacity: 0.45;
+  }
+
+  /* Bauhaus-Switch (wie der Vegan-Toggle auf der Startseite) */
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.25rem 0.6rem 0.25rem 0.35rem;
+    border: 2.5px solid var(--ink);
+    border-radius: 999px;
+    background: #fff;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .switch .knob {
+    width: 36px;
+    height: 22px;
+    border: 2.5px solid var(--ink);
+    border-radius: 999px;
+    background: var(--paper);
+    position: relative;
+    flex: none;
+    transition: background 0.15s;
+  }
+  .switch .knob::after {
+    content: "";
+    box-sizing: border-box;
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border: 2.5px solid var(--ink);
+    border-radius: 50%;
+    background: #fff;
+    transform: translateY(-50%);
+    transition: left 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .switch.on .knob {
+    background: #3aaa5e;
+  }
+  .switch.on .knob::after {
+    left: calc(100% - 14px - 2px);
   }
   select,
   input[type="time"],

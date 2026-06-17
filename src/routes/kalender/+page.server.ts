@@ -49,7 +49,7 @@ export const actions: Actions = {
     const allDay: Partial<Record<Meal, boolean>> = {};
     for (const m of MEALS) {
       times[m] = String(data.get(m) ?? "");
-      allDay[m] = data.get(`${m}_allday`) != null;
+      allDay[m] = String(data.get(`${m}_allday`) ?? "") === "1";
     }
     const marker = Number(data.get("marker") ?? 15);
     setMealTimes(userId, times, allDay, marker);
