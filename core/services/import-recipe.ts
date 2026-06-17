@@ -56,8 +56,18 @@ Regeln:
 - theme_color: leer lassen.
 - image_subject: KURZE ENGLISCHE Beschreibung des fertigen Gerichts für eine Aquarell-Illustration (z.B. a slice of apple pie with lattice crust). OHNE Anführungszeichen.
 - last_modified: ${today()}
-- "## Zutaten": bei Bedarf in "### Unterabschnitte" gliedern; jede Zutat als "- Menge Einheit Zutat".
-- "## Schritte": nummerierte Liste "1. ...". Wichtige Zutaten, Zeiten und Temperaturen mit **fett** hervorheben.
+- "## Zutaten": bei Bedarf in "### Unterabschnitte" gliedern; jede Zeile als "- Menge Einheit Zutat".
+  WICHTIG: Zutatenzeilen enthalten NUR die Einkaufsangabe (Menge + Einheit + Zutat) – KEINE
+  Zubereitungs-/Verarbeitungshinweise. Entferne aus den Zutaten alle Vorbereitungs-Anweisungen
+  (z.B. "geschnitten", "in feine Streifen", "gehackt", "fein gewürfelt", "geschält", "entkernt",
+  "gerieben", "Saft von …", "Blätter von …", "geschmolzen", "zimmerwarm") und verlagere diese
+  Vorbereitung stattdessen in die passenden "## Schritte". Beispiele: "2 Mangos, geschält und
+  gewürfelt" → Zutat "- 2 reife Mangos" und im Schritt "Mangos schälen und in 2 cm Würfel
+  schneiden"; "Saft von 4 Limetten" → Zutat "- 4 Limetten" und im Schritt "Saft der Limetten
+  auspressen". Eine knappe Sorten-/Zustandsangabe, die KEINE Tätigkeit ist (z.B. "reif",
+  "rote", "passierte Tomaten", "in Öl"), darf bleiben.
+- "## Schritte": nummerierte Liste "1. ...". Beziehe die ausgelagerte Vorbereitung der Zutaten
+  hier ein. Wichtige Zutaten, Zeiten und Temperaturen mit **fett** hervorheben.
 - "## Hinweise": NUR kurze, praktische Tipps als "- ..." (höchstens 3 Stichpunkte, je ein knapper Satz). KEINE langen Hintergrundtexte, Anekdoten oder wörtlichen Zitate. Weglassen, wenn es keine echten Tipps gibt.
 
 Gib genau diese Struktur aus. WICHTIG: Die erste Zeile der Antwort MUSS "---" sein und das Frontmatter MUSS mit einer Zeile "---" abgeschlossen werden:
