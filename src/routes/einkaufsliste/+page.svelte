@@ -112,6 +112,10 @@
                 {#if it.quantity}<span class="iqty">{it.quantity}</span>{/if}
               </button>
             {/if}
+            <form method="POST" action="?/addStandard" use:enhance class="del">
+              <input type="hidden" name="name" value={it.name} />
+              <button class="star" type="submit" aria-label={`„${it.name}" als Standardzutat`} title="Als Standardzutat">★</button>
+            </form>
             <form method="POST" action="?/removeItem" use:enhance class="del">
               <input type="hidden" name="name" value={it.name} />
               <button class="x" type="submit" aria-label="Entfernen">✕</button>
@@ -375,6 +379,17 @@
   }
   .x:hover {
     color: var(--red);
+  }
+  .star {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .star:hover {
+    color: var(--yellow);
   }
   .done {
     margin: 0.5rem 0 1.4rem;

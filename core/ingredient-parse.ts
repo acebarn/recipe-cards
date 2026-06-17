@@ -10,6 +10,35 @@ export interface ParsedIngredient {
   name: string;
 }
 
+// Quantifizierende/qualifizierende Füllwörter ohne eigene Bedeutung als Zutat.
+// Werden als FÜHRENDE Wörter entfernt, damit „etwas Salz" als „Salz" matcht.
+const FUNCTION_WORDS = [
+  "etwas", "etw", "bisschen", "evtl", "optional", "ggf", "ca", "circa", "etwa",
+  "reichlich", "wenig", "ein", "eine", "einige", "paar", "je", "pro", "nach", "geschmack",
+];
+// Adjektiv-/Partizip-Stämme inkl. deutscher Flexionsendungen (frische/frischer/…).
+const ADJ_STEMS = [
+  "frisch", "fein", "grob", "gehackt", "gemahlen", "getrocknet", "gewürfelt",
+  "gerieben", "gepresst", "geraspelt", "gerebelt", "geschält", "halbiert",
+];
+const ENDINGS = ["", "e", "er", "es", "em", "en"];
+const QUALIFIERS = new Set([
+  ...FUNCTION_WORDS,
+  ...ADJ_STEMS.flatMap((s) => ENDINGS.map((e) => s + e)),
+]);
+
+const isNoise = (w: string) => {
+  const x = w.toLowerCase();
+  return QUALIFIERS.has(x) || UNITS.has(x);
+};
+
+/** Entfernt führende Füllwörter/Einheiten; mindestens ein Wort bleibt erhalten. */
+function dropLeadingNoise(words: string[]): string[] {
+  let i = 0;
+  while (i < words.length - 1 && isNoise(words[i])) i++;
+  return words.slice(i);
+}
+
 /**
  * Führende Menge (über das QUANTITY-Regex aus scale.ts), danach optionale Einheit aus
  * UNITS, Klammerzusätze entfernt; der Rest ist der Name. Ohne erkennbare Menge bleibt
@@ -17,10 +46,15 @@ export interface ParsedIngredient {
  */
 export function parseIngredient(line: string): ParsedIngredient {
   const stripParens = (s: string) => s.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  // Führende Füllwörter aus dem Anzeigenamen entfernen ("etwas Salz" → "Salz").
+  const cleanName = (s: string) => {
+    const w = s.split(" ").filter(Boolean);
+    return w.length ? dropLeadingNoise(w).join(" ") : s;
+  };
 
   const m = line.match(QUANTITY);
   if (!m) {
-    return { qty: null, unit: "", name: stripParens(line) };
+    return { qty: null, unit: "", name: cleanName(stripParens(line)) };
   }
 
   const [, , quantityToken, , rest] = m;
@@ -35,7 +69,7 @@ export function parseIngredient(line: string): ParsedIngredient {
     remainder = firstSpace === -1 ? "" : remainder.slice(firstSpace + 1).trim();
   }
 
-  return { qty, unit, name: remainder || stripParens(line) };
+  return { qty, unit, name: cleanName(remainder) || stripParens(line) };
 }
 
 /**
@@ -45,9 +79,10 @@ export function parseIngredient(line: string): ParsedIngredient {
 export function normalizeName(name: string): string {
   let s = name.toLowerCase().trim();
   s = s.replace(/[^\p{L}\s-]/gu, " ").replace(/\s+/g, " ").trim();
+  // Führende Füllwörter/Einheiten entfernen ("etwas salz" → "salz", "prise salz" → "salz").
+  const words = dropLeadingNoise(s.split(" ").filter(Boolean));
   // Simple deutsche Depluralisierung des letzten Wortes: nur ein abschließendes
   // "n"/"s" entfernen. So matcht "Tomaten"→"tomate"="Tomate", "Zwiebeln"→"zwiebel".
-  const words = s.split(" ");
   const last = words.length - 1;
   if (words[last] && words[last].length > 4) {
     words[last] = words[last].replace(/(n|s)$/u, "");
