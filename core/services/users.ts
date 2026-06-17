@@ -215,6 +215,8 @@ export function deleteUser(id: number): void {
     db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
     db.prepare("DELETE FROM bring_accounts WHERE user_id = ?").run(id);
     db.prepare("DELETE FROM standard_ingredients WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM google_tokens WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM calendar_settings WHERE user_id = ?").run(id);
     db.prepare("DELETE FROM users WHERE id = ?").run(id);
   });
   tx();

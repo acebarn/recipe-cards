@@ -145,4 +145,32 @@ CREATE TABLE standard_ingredients (
 CREATE INDEX idx_standard_user ON standard_ingredients(user_id);
 `,
   },
+  {
+    id: "004_calendar",
+    sql: `
+-- Google-OAuth-Tokens je Nutzer (Refresh-Token verschlüsselt, nie im Klartext).
+CREATE TABLE google_tokens (
+  user_id       INTEGER PRIMARY KEY REFERENCES users(id),
+  refresh_token TEXT NOT NULL,           -- verschlüsselt (AES-256-GCM)
+  access_token  TEXT,                     -- gecacht
+  expires_at    TEXT,                     -- ISO, Ablauf des access_token
+  scope         TEXT,
+  updated_at    TEXT NOT NULL
+);
+
+-- Kalender-Einstellungen je Nutzer (gewählter Kalender + übliche Mahlzeit-Zeiten).
+CREATE TABLE calendar_settings (
+  user_id        INTEGER PRIMARY KEY REFERENCES users(id),
+  calendar_id    TEXT,
+  calendar_name  TEXT,
+  tz             TEXT NOT NULL DEFAULT 'Europe/Berlin',
+  breakfast_time TEXT NOT NULL DEFAULT '08:00',
+  lunch_time     TEXT NOT NULL DEFAULT '12:30',
+  dinner_time    TEXT NOT NULL DEFAULT '18:30',
+  snack_time     TEXT NOT NULL DEFAULT '15:30',
+  marker_minutes INTEGER NOT NULL DEFAULT 15,
+  updated_at     TEXT NOT NULL
+);
+`,
+  },
 ];

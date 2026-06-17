@@ -15,6 +15,21 @@
   let regenerating = $state(false);
   let addingToList = $state(false);
 
+  // Einplanen-Panel
+  let showPlan = $state(false);
+  let planning = $state(false);
+  const today = new Date().toISOString().slice(0, 10);
+  let planDate = $state(today);
+  let planMealSel = $state<"breakfast" | "lunch" | "dinner" | "snack">("dinner");
+  let planRecurrence = $state<"none" | "weekly" | "biweekly" | "monthly">("none");
+  let planUntil = $state("");
+  const MEAL_OPTS: [string, string][] = [
+    ["breakfast", "Frühstück"],
+    ["lunch", "Mittagessen"],
+    ["dinner", "Abendessen"],
+    ["snack", "Zwischendurch"],
+  ];
+
   let scale = $state(1);
   let pdfHref = $derived(`/recipe/${r.slug}/pdf${scale !== 1 ? `?scale=${scale}` : ""}`);
   let cookHref = $derived(`/recipe/${r.slug}/cook${scale !== 1 ? `?scale=${scale}` : ""}`);
@@ -64,6 +79,7 @@
           {addingToList ? "… wird hinzugefügt" : "🛒 Auf die Einkaufsliste"}
         </button>
       </form>
+      <button class="btn" type="button" onclick={() => (showPlan = !showPlan)}>📅 Einplanen</button>
       {#if data.canManage}
         <a class="btn" href={`/recipe/${r.slug}/edit`}>Bearbeiten</a>
         <form method="POST" action="?/delete" use:enhance onsubmit={confirmDelete}>
@@ -75,6 +91,51 @@
 
   {#if form?.listError}<p class="msg err">{form.listError}</p>{/if}
   {#if form?.listOk}<p class="msg ok">🛒 {form.listOk}</p>{/if}
+
+  {#if showPlan}
+    <div class="plan-box">
+      {#if data.canPlan}
+        <form
+          method="POST"
+          action="?/planMeal"
+          use:enhance={() => {
+            planning = true;
+            return async ({ update }) => {
+              await update({ reset: false });
+              planning = false;
+            };
+          }}
+        >
+          <div class="plan-row">
+            <label>Tag <input type="date" name="date" bind:value={planDate} required /></label>
+            <label>Mahlzeit
+              <select name="meal" bind:value={planMealSel}>
+                {#each MEAL_OPTS as [v, label] (v)}<option value={v}>{label}</option>{/each}
+              </select>
+            </label>
+            <label>Wiederholung
+              <select name="recurrence" bind:value={planRecurrence}>
+                <option value="none">einmalig</option>
+                <option value="weekly">wöchentlich</option>
+                <option value="biweekly">alle 2 Wochen</option>
+                <option value="monthly">monatlich</option>
+              </select>
+            </label>
+            {#if planRecurrence !== "none"}
+              <label>bis (optional) <input type="date" name="until" bind:value={planUntil} /></label>
+            {/if}
+            <button class="btn" type="submit" disabled={planning}>{planning ? "…" : "Einplanen"}</button>
+          </div>
+        </form>
+      {:else}
+        <p class="hint">
+          Kalender ist noch nicht verbunden. <a href="/kalender">📅 Kalender einrichten →</a>
+        </p>
+      {/if}
+      {#if form?.planError}<p class="msg err">{form.planError}</p>{/if}
+      {#if form?.planOk}<p class="msg ok">📅 {form.planOk}</p>{/if}
+    </div>
+  {/if}
 
   <article class="recipe">
     <header class="rhead">
@@ -265,6 +326,61 @@
   .admin-box .msg.ok {
     background: #e6f4ea;
     color: #1e6b34;
+  }
+
+  /* Seitenweite Feedback-Meldungen (Einkaufsliste/Einplanen) */
+  .page > .msg {
+    margin: 0 0 1rem;
+    padding: 0.5rem 0.8rem;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    font-weight: 600;
+  }
+  .msg.err {
+    background: #fde8e8;
+    color: #9b1c1c;
+  }
+  .msg.ok {
+    background: #e6f4ea;
+    color: #1e6b34;
+  }
+
+  .plan-box {
+    margin: 0 0 1rem;
+    border: 2.5px dashed var(--ink);
+    border-radius: var(--radius);
+    padding: 0.8rem 0.9rem;
+    background: var(--accent-soft, #f4efe3);
+  }
+  .plan-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.6rem;
+  }
+  .plan-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .plan-row input,
+  .plan-row select {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 0.4rem 0.5rem;
+    font: inherit;
+    background: #fff;
+  }
+  .plan-box .hint {
+    margin: 0;
+    color: var(--muted);
+  }
+  .plan-box .hint a {
+    color: var(--accent);
+    font-weight: 700;
   }
 
   .recipe {

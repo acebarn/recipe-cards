@@ -9,6 +9,8 @@ import { generateAndStoreImage } from "$core/services/image-store.ts";
 import { enqueueDelete, enqueueUpsert } from "$core/services/sync-queue.ts";
 import { getBringProvider } from "$core/services/shopping/account.ts";
 import { addRecipeIngredients } from "$core/services/shopping/add-recipe.ts";
+import { hasCalendarAccess, MEALS, type Meal } from "$core/services/calendar/settings.ts";
+import { planMeal, type Recurrence } from "$core/services/calendar/plan.ts";
 import { canManageRecipe, getUserById, isAdmin } from "$core/services/users.ts";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { existsSync } from "node:fs";
@@ -55,6 +57,7 @@ export const load: PageServerLoad = ({ params, locals }) => {
     },
     canAdmin: isAdmin(locals.user),
     canManage: canManageRecipe(locals.user, r.createdBy),
+    canPlan: locals.user ? hasCalendarAccess(locals.user.id) : false,
     createdByName: r.createdBy ? (getUserById(r.createdBy)?.name ?? null) : null,
     imageSubject: m.image_subject ?? "",
     imageVersion: r.lastModified,
@@ -154,6 +157,40 @@ export const actions: Actions = {
       return { listOk: parts.join(", ") + "." };
     } catch (e) {
       return fail(502, { listError: `Bring-Fehler: ${(e as Error).message}` });
+    }
+  },
+
+  // Rezept als Mahlzeit in den Google-Kalender einplanen.
+  planMeal: async ({ request, params, locals }) => {
+    if (!locals.user) throw error(401, "Nicht angemeldet.");
+    const r = getRecipeBySlug(params.slug);
+    if (!r) throw error(404, "Rezept nicht gefunden");
+    if (!hasCalendarAccess(locals.user.id)) {
+      return fail(400, { planError: "Kalender ist nicht verbunden – unter „📅 Kalender“ einrichten." });
+    }
+
+    const data = await request.formData();
+    const date = String(data.get("date") ?? "");
+    const meal = String(data.get("meal") ?? "") as Meal;
+    const recurrence = String(data.get("recurrence") ?? "none") as Recurrence;
+    const until = String(data.get("until") ?? "").trim() || undefined;
+    if (!date) return fail(400, { planError: "Bitte ein Datum wählen." });
+    if (!MEALS.includes(meal)) return fail(400, { planError: "Bitte eine Mahlzeit wählen." });
+
+    try {
+      const res = await planMeal({
+        userId: locals.user.id,
+        slug: params.slug,
+        title: r.meta.title,
+        date,
+        meal,
+        recurrence,
+        until,
+      });
+      const when = new Date(res.date).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+      return { planOk: `${res.meal} am ${when} eingeplant${res.recurring ? " (wiederkehrend)" : ""}.` };
+    } catch (e) {
+      return fail(502, { planError: (e as Error).message });
     }
   },
 };
