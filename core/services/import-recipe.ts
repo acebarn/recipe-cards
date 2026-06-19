@@ -257,6 +257,29 @@ export async function resolveInput(positionals: string[]): Promise<Input | null>
 
 // ---------------- Gemini-Aufruf ----------------
 
+/**
+ * Übersetzt Gemini-HTTP-Fehler in verständliche Meldungen (für Nutzer ohne
+ * technischen Hintergrund). 503/„overloaded" = hohe Nachfrage, 429 = Tageslimit.
+ */
+async function geminiError(res: Response): Promise<Error> {
+  const body = (await res.text()).slice(0, 600);
+  if (res.status === 503 || /overloaded|unavailable|high demand/i.test(body)) {
+    return new Error(
+      "Der Rezept-Dienst ist gerade stark ausgelastet (hohe Nachfrage). Bitte versuche es in ein paar Minuten noch einmal.",
+    );
+  }
+  if (res.status === 429 || /resource_exhausted|quota/i.test(body)) {
+    return new Error(
+      "Das Tageslimit für den automatischen Import ist erreicht. Bitte versuche es später noch einmal – nach Mitternacht (US-Zeit) steht wieder Kontingent bereit.",
+    );
+  }
+  if (res.status >= 500) {
+    return new Error("Der Rezept-Dienst hat gerade ein Problem. Bitte versuche es gleich noch einmal.");
+  }
+  // Unerwartet (z.B. 400) – technische Info für die Diagnose behalten.
+  return new Error(`Rezept-Import fehlgeschlagen (HTTP ${res.status} ${res.statusText}): ${body}`);
+}
+
 export async function callGemini(parts: Part[], apiKey: string, model: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const res = await fetch(url, {
@@ -266,7 +289,7 @@ export async function callGemini(parts: Part[], apiKey: string, model: string): 
   });
 
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status} ${res.statusText}: ${(await res.text()).slice(0, 400)}`);
+    throw await geminiError(res);
   }
 
   const data = (await res.json()) as {
