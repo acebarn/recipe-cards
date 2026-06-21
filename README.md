@@ -1,70 +1,120 @@
-# recipe-cards
+# SCHMACKOFATZ 🍳
 
-Ein CLI-Tool, das eine Rezeptsammlung im YAML-/Markdown-Format scannt und daraus
-druckfertige **A5-Rezeptkarten im Querformat** rendert – über ein
-[Typst](https://typst.app)-Template im Bauhaus-Stil.
+Eine selbst-gehostete **Rezept-Web-App** im Bauhaus-Stil: Rezepte importieren (Foto,
+Link, Text), in einer durchsuchbaren Bibliothek verwalten und als druckfertige
+**A5-Rezeptkarten (Querformat, via [Typst](https://typst.app))** mit KI-Aquarell-Symbol
+rendern. Dazu Einkaufsliste, Wochenplan, Vorratskammer und ein Statistik-Dashboard.
 
-Jede Karte besteht aus genau zwei Seiten:
-
-- **Vorderseite:** Titel, Metadaten (Zeiten, Portionen, Schwierigkeit), Zubehör und die Zutatenliste – dazu ein großes KI-Aquarell-Symbol des Gerichts.
-- **Rückseite:** die Zubereitungsschritte (plus Hinweise), mit demselben Symbol kleiner oben rechts.
-
-Pro Rezept wird eine Grundfarbe bestimmt, die sich durch Akzente, Flächen und Formen zieht.
+Die App läuft als **SvelteKit-Server** (Node-Adapter) mit **SQLite**-Bibliothek hinter
+Google-Login. Ein **Telegram-Bot** und eine **CLI** teilen sich denselben Code; eine
+optionale **Google-Drive-Sicherung** (rclone) hält Markdown + PDFs gespiegelt.
 
 ---
 
-## Voraussetzungen
+## Funktionen
 
-- **Node.js ≥ 23.6** – die TypeScript-Dateien werden ohne Build-Schritt direkt ausgeführt.
-- **[Typst](https://github.com/typst/typst) ≥ 0.14** im `PATH` (`typst --version`).
-- Die Schrift **Futura** (auf macOS vorinstalliert). Fehlt sie, greift automatisch Helvetica Neue/Arial.
-- *Optional* für die Bildgenerierung: ein **Pixazo-API-Key** (siehe [Bilder generieren](#bilder-generieren)).
-- *Optional* für den Foto-Import: ein **Google-Gemini-API-Key** (siehe [Rezept aus Foto importieren](#rezept-aus-foto-importieren)).
+**Bibliothek & Rezepte**
+- Startseite mit Such-, Kategorie- und Region-Filtern (ein-/ausklappbar, farbcodiert),
+  Listen-/Raster-Ansicht, Sortierung, „Neu"-Leiste und Umschaltern „nur meine Rezepte"
+  sowie „vegetarisch/vegan" (Zutaten-Heuristik, in `localStorage` gemerkt).
+- Rezeptseite mit Mengen-Skalierung, **Kochmodus**, **Rezeptkarte (PDF)**, Bearbeiten/
+  Löschen (Besitzrechte), Bild-Neugenerierung (Admin).
+- **Import** unter `/add` aus Link, Instagram-Reel, Text oder Foto(s) via Google Gemini.
+- **Restefest** (`/restefest`): Rezept-Ranking nach vorhandenen Restzutaten.
 
-## Installation
+**Einkaufen & Planen**
+- **Einkaufsliste** über [Bring!](https://www.getbring.com/) – Zutaten eines Rezepts
+  (skaliert) zusammenführen, Standardzutaten überspringen.
+- **Vorratskammer** (`/inventar`): Inventar für Vorratsschrank & Tiefkühler, mit
+  Mengen-Spinner, „wenig"-Markierung, Standardartikel-Vorlagen, Gruppen + gemerkter
+  Zuordnung, und Vorschlägen aus zuletzt abgehakten Einkäufen. Beim „Auf die
+  Einkaufsliste" fragt ein Dialog, was noch vorrätig ist.
+- **Geteilter Haushalt**: Inventar mit anderen registrierten Nutzern teilen.
+- **Wochenplan** + **Google-Kalender**: Rezepte als Mahlzeiten (Frühstück/Mittag/Abend/
+  Zwischendurch) einplanen, auch wiederkehrend.
+
+**Verwaltung**
+- **Google-Login** mit Allowlist und Rollen (Owner/Admin/Mitglied); neue Nutzer landen
+  in „ausstehend" bis zur Freigabe. Benutzerverwaltung unter `/admin/members`.
+- **Einstellungen** (`/einstellungen`): Bring-Konto, Google-Kalender, Inventar an/aus,
+  Haushalt, Benutzerverwaltung.
+- **Statistik-Dashboard** (`/statistik`): Rezepte nach Kategorie, nach Land
+  (interaktive Karte), häufigste Zutaten u. a.
+
+---
+
+## Tech-Stack
+
+- **SvelteKit 2 / Svelte 5** (Runes), `@sveltejs/adapter-node`
+- **SQLite** via `better-sqlite3` (WAL), Schema über eingebettete Migrationen
+- **@auth/sveltekit** (Google OAuth)
+- **Typst** für das PDF-Rendering der Karten, **Pixazo FLUX** für die Aquarell-Bilder,
+  **Google Gemini** für den Import
+- **bring-shopping** (Bring!), Google-Calendar-REST, **rclone** (Drive-Sicherung)
+- Node ≥ 23.6 – TypeScript läuft ohne Build-Schritt direkt (auch in der CLI)
+
+---
+
+## Lokale Entwicklung
 
 ```bash
 git clone https://github.com/acebarn/recipe-cards.git
 cd recipe-cards
 npm install
+cp .env.example .env        # Keys/Secrets eintragen (siehe unten)
+npm run dev                 # http://localhost:5173
 ```
 
-## Schnellstart
+**Login ohne Google (nur lokal):** Mit `RECIPE_DEV_USER=<mail einer existierenden,
+freigegebenen DB-Mail>` wird der OAuth-Flow umgangen. Da Vite `.env` nicht ins echte
+`process.env` legt, beim Start direkt voranstellen:
 
 ```bash
-# Alle Rezepte aus ./recipes nach ./out rendern
-npm start
+RECIPE_DEV_USER=du@example.com npm run dev
 ```
 
-Für jedes Rezept entsteht eine PDF in `out/`, z. B. `out/zwiebelkuchen.pdf`.
-Die CLI meldet pro Karte die Seitenzahl und warnt, falls eine Karte über zwei Seiten läuft.
+Weitere Befehle: `npm run build` / `npm run preview` (Produktion), `npm run check`
+(svelte-check, Ziel 0 Fehler/0 Warnungen).
+
+### Umgebungsvariablen (`.env`)
+
+| Variable | Zweck |
+|----------|-------|
+| `AUTH_SECRET` | Auth.js-Secret (`openssl rand -base64 32`) |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google-OAuth-Client (Web) |
+| `ORIGIN` | öffentliche URL (hinter Proxy nötig, z. B. für Callbacks) |
+| `GEMINI_API_KEY` | Rezept-Import (Gemini) |
+| `PIXAZO_API_KEY` | Aquarell-Bildgenerierung |
+| `RECIPE_DB_PATH` | Pfad zur SQLite-DB (Standard `<root>/data/library.db`) |
+| `RECIPE_PROJECT_ROOT` | Root für Typst/Assets (im Container `/app`) |
+| `RECIPE_SYNC` | `1` aktiviert den Drive-Sync-Worker (sonst aus) |
+| `DRIVE_REMOTE` / `DRIVE_FOLDER` | rclone-Remote bzw. Drive-Ordner (Standard `drive` / `Rezepte`) |
+| `TELEGRAM_BOT_TOKEN` / `ALLOWED_TELEGRAM_USERS` | Telegram-Bot |
+| `RECIPE_DEV_USER` | nur lokal: OAuth-Bypass |
+
+Für die Kalenderfunktion müssen am OAuth-Client zusätzlich die Scopes
+`calendar.events` + `calendar.readonly` freigegeben sein.
 
 ---
 
 ## Rezeptformat
 
-Jedes Rezept ist eine `.md`-Datei mit **YAML-Frontmatter** (Metadaten) und einem
-strukturierten Markdown-Body. Verzeichnisse unter `recipes/` werden rekursiv durchsucht;
-`Recipe Template.md` und versteckte Dateien werden übersprungen.
+Rezepte werden in der DB gehalten, aber als **Markdown mit YAML-Frontmatter** ein-/
+ausgelesen (Round-Trip für Import/Drive). Beispiel:
 
 ```markdown
 ---
 title: Zwiebelkuchen
-tags:
-  - quiche
-category: backen
-grouping: deftig
-prep_time: 1:50        # "H:MM" oder reine Minutenzahl (z. B. 20)
+category: brot            # Schlüssel, siehe Tabelle unten
+region: Deutschland       # Land/Region → Flaggen-Emoji in der UI
+tags: [deftig]
+prep_time: 1:50           # "H:MM" oder reine Minuten
 cook_time: 0:40
 rest_time: 0:30
-servings: 1            # Zahl; mit --scale skalierbar
-equipment:
-  - auflaufform
-  - pfanne
-difficulty: medium     # easy/simple/einfach · medium/mittel · hard/schwer
-source_url:
-theme_color:           # optional, #hex – sonst Farbe aus Bild/Titel
-image_subject: a single slice of savory onion tart topped with browned tofu cubes
+servings: 1
+equipment: [auflaufform, pfanne]
+difficulty: medium        # easy/medium/hard (dt. Synonyme erlaubt)
+image_subject: a single slice of savory onion tart      # englische Bildbeschreibung
 last_modified: 2025-10-20
 ---
 # Zwiebelkuchen
@@ -72,259 +122,105 @@ last_modified: 2025-10-20
 ## Zutaten
 ### Teig
 - 250 g Mehl (Type 405)
-- ½ Pck. Trockenhefe
 ### Füllung
 - 1 kg Zwiebel
-- 200 g Schmand
 
 ## Schritte
 1. **Mehl** in eine Schüssel geben …
-2. Teig **10 Minuten** kneten …
 
 ## Hinweise
-- Tofu lässt sich mit Räucherpaprika verfeinern.
+- Mit Räucherpaprika verfeinern.
 ```
 
-### Felder im Frontmatter
-
-| Feld | Pflicht | Beschreibung |
-|------|:------:|--------------|
-| `title` | ✓ | Titel der Karte |
-| `tags` | | Liste von Schlagwörtern (für `--tag`) |
-| `category` | | Kategorie (für `--category`) |
-| `grouping` | | Gruppierung (für `--grouping`) |
-| `prep_time` / `cook_time` / `rest_time` | | Zeit als `H:MM` **oder** Minutenzahl |
-| `servings` | | Portionen (Zahl) |
-| `equipment` | | Liste von Zubehör |
-| `difficulty` | | `easy`/`medium`/`hard` (dt. Synonyme erlaubt) |
-| `source_url` | | Quelle(n); wird auf der Karte nicht angezeigt |
-| `theme_color` | | `#hex`-Grundfarbe; übersteuert die automatische Ermittlung |
-| `image_subject` | | **englische** Bildbeschreibung fürs Aquarell-Badge |
-| `image_prompt` | | vollständiger Bild-Prompt; übersteuert `image_subject` |
-
-### Body
-
-- `## Zutaten` – optional in `### Unterabschnitte` gegliedert, Einträge als `- …`.
-- `## Schritte` (auch „Zubereitung") – nummerierte Liste `1. …`. `**fett**` wird als Fettdruck übernommen.
-- `## Hinweise` (auch „Tipps") – Einträge als `- …`.
+**Kategorie-Schlüssel:** `fruehstueck`, `vorspeisen`, `snacks`, `salate`, `suppen`,
+`eintoepfe`, `hauptgerichte`, `beilagen`, `grundrezepte`, `saucen`, `brot`, `kuchen`,
+`desserts`, `getraenke`. Zutaten dürfen nur Menge + Einheit + Zutat enthalten
+(Zubereitungshinweise gehören in die Schritte).
 
 ---
 
-## Nutzung der CLI
+## CLI & Hilfsskripte
+
+Dieselbe Logik ist als CLI nutzbar (rendert Karten ohne laufenden Server):
 
 ```bash
-node src/cli.ts [verzeichnis] [optionen]
-# oder via npm (Argumente nach --):
-npm start -- --category backen
+npm start                                  # alle Rezepte aus ./recipes → ./out
+npm start -- --category brot --scale 2     # filtern / Mengen skalieren
+npm run import -- foto.heic                 # Foto/Link/Text → Rezept-Entwurf (Gemini)
+npm run images                             # fehlende Aquarell-Bilder erzeugen (Pixazo)
+npm run add -- "https://…/rezept"          # Import → Bild → PDF in einem Lauf
+npm run refresh                            # bestehende Sammlung: Bilder + PDFs ergänzen
+npm run bot                                # Telegram-Bot lokal starten
+npm run seed                               # Bibliothek aus Google Drive in die DB ziehen
 ```
 
-| Option | Beschreibung |
-|--------|--------------|
-| `[verzeichnis]` | Eingabe-Ordner mit Rezepten (Standard: `./recipes`) |
-| `--input <ordner>` | Eingabe-Ordner (Alternative zum Positional-Argument) |
-| `--out <ordner>` | Zielordner für die PDFs (Standard: `./out`) |
-| `--scale <faktor>` | Zutatenmengen skalieren, z. B. `2` oder `0,5` |
-| `--category <name>` | nur Rezepte dieser Kategorie |
-| `--tag <name>` | nur Rezepte mit diesem Tag |
-| `--grouping <name>` | nur Rezepte dieser Gruppierung |
-| `-h`, `--help` | Hilfe anzeigen |
+Die Karte besteht aus zwei A5-Seiten (Vorderseite: Metadaten + Zutaten + großes Aquarell;
+Rückseite: Schritte + Hinweise). Die Grundfarbe ergibt sich aus `theme_color`, sonst aus
+dem Bild, sonst deterministisch aus dem Titel. Voraussetzung fürs Rendern:
+**Typst ≥ 0.14** im `PATH` (die Schrift *Jost* ist gebündelt).
 
-Eingabe- und Ausgabe-Ordner dürfen **außerhalb des Projekts** liegen — praktisch für
-einen **Reimport**, z. B. wenn du eine Drive-Bibliothek lokal neu rendern willst:
+---
+
+## Telegram-Bot
+
+Der Bot nimmt **Foto/Link/Text** im Chat entgegen, fährt die Pipeline und schickt die
+fertige **PDF** zurück; danach kann das Rezept in die Bibliothek übernommen werden.
+Er teilt sich Image, SQLite-DB und Assets mit der Web-App (siehe Deployment). Lokal:
 
 ```bash
-npm start -- --input ~/Drive/Rezepte/md --out ~/Drive/Rezepte/pdf
+# .env: TELEGRAM_BOT_TOKEN (@BotFather), optional ALLOWED_TELEGRAM_USERS=<id1>,<id2>
+npm run bot
 ```
 
-**Mengen-Skalierung:** `--scale` rechnet nur die **Zutatenliste** um – inklusive
-Unicode-Brüchen (`½ Pck. → 1 Pck.`, `¼ TL → ⅛ TL`). Schritttexte bleiben unverändert.
+---
+
+## Deployment (VPS, Docker)
+
+Web-App und Bot laufen als zwei Container aus **demselben Image** hinter **nginx**
+(Reverse-Proxy, siehe [`deploy/nginx-recipes.conf`](deploy/nginx-recipes.conf)). Sie
+teilen sich `library.db` und den Assets-Ordner; der Drive-Sync-Worker läuft nur im
+Web-Container (`RECIPE_SYNC=1`). Konfiguration liegt **außerhalb** des Repos in
+`/opt/recipe-cards/web.env` bzw. `bot.env` (Secrets, mode 600).
+
+Im Repo-Verzeichnis auf dem Server (`/opt/recipe-cards/app`):
 
 ```bash
-npm start -- --scale 2            # alle Mengen verdoppeln
-npm start -- --category backen    # nur Kategorie "backen"
+git pull --ff-only
+DOCKER_BUILDKIT=0 docker build -t recipe-web:latest .   # buildx zu alt für compose-build
+docker compose up -d
 ```
 
----
+Migrationen laufen automatisch beim Start. Details zu Volumes/Env: siehe
+[`docker-compose.yml`](docker-compose.yml).
 
-## Rezept importieren (Foto, Webseite oder Text)
+### Google-Drive-Sicherung (optional)
 
-Aus einem **Foto** (z. B. Kochbuchseite), einer **Webseiten-URL** oder reinem
-**Rezepttext** lässt sich automatisch ein Rezept-Entwurf im Template-Format
-erzeugen. Ein multimodales Model (**Google Gemini**, `gemini-3.5-flash`) liest die
-Eingabe aus und füllt Frontmatter, Zutaten, Schritte und Hinweise – inklusive
-eines englischen `image_subject` für die spätere Bildgenerierung.
+Bei aktivem Worker (`RECIPE_SYNC=1`) werden Rezepte (`.md`) und PDFs nach Kategorie in
+Drive gespiegelt (per **rclone**, Remote-Config unter `~/.config/rclone`):
 
-Die **Eingabeart wird automatisch erkannt**:
-
-| Eingabe | Verhalten |
-|---------|-----------|
-| Bilddatei(en) | Foto-Modus; mehrere Bilder = mehrseitiges Rezept (inkl. **HEIC**) |
-| `http(s)`-URL | Webseite wird geladen, Beiwerk (Navigation/Werbung) ignoriert |
-| Textdatei (`.txt`/`.md`) | Inhalt wird als Rezepttext gelesen |
-| Fließtext / `-` | Text aus den Argumenten oder von stdin |
-
-1. Gemini-API-Key hinterlegen ([aistudio.google.com/apikey](https://aistudio.google.com/apikey)):
-
-   ```bash
-   cp .env.example .env
-   # in .env eintragen:  GEMINI_API_KEY=dein-key
-   ```
-
-2. Importieren – je nach Quelle:
-
-   ```bash
-   npm run import -- foto.heic                       # Foto
-   npm run import -- seite1.jpg seite2.jpg           # mehrseitiges Rezept
-   npm run import -- "https://example.com/rezept"    # Webseite
-   npm run import -- "500 g Mehl, 3 Eier … (Text)"   # Fließtext
-   pbpaste | npm run import -- -                      # Text aus der Zwischenablage
-   ```
-
-| Option | Beschreibung |
-|--------|--------------|
-| `--category <name>` | Ziel-Kategorieordner erzwingen (sonst aus dem Inhalt abgeleitet) |
-| `--stdout` | Ergebnis nur ausgeben, keine Datei schreiben |
-| `--force` | vorhandene Datei überschreiben statt zu nummerieren |
-| `--model <name>` | Gemini-Modell (Standard: `gemini-3.5-flash`) |
-
-Der Entwurf landet als `.md` im passenden Kategorie-Ordner (z. B. `category: salate`
-→ `recipes/4 salate/`).
-
-> **Hinweis:** Das Ergebnis ist ein **Entwurf** – bitte vor dem Drucken prüfen und
-> korrigieren. Danach `npm run images` (Aquarell-Bild) und `npm start` (Karte rendern).
->
-> Manche Webseiten blockieren automatisierte Zugriffe (Fehler 403/404). In dem Fall
-> einfach den Rezepttext kopieren und als Fließtext übergeben.
-
----
-
-## Bilder generieren
-
-Die Aquarell-Symbole werden mit **Pixazo FLUX.1 [schnell]** erzeugt und in `assets/<slug>.<ext>` gecacht.
-
-1. API-Key hinterlegen (Pixazo-Dashboard → API Key):
-
-   ```bash
-   cp .env.example .env
-   # in .env eintragen:  PIXAZO_API_KEY=dein-key
-   ```
-
-2. Bilder erzeugen:
-
-   ```bash
-   npm run images            # nur fehlende Bilder
-   node scripts/gen-images.ts --force   # alle neu generieren
-   ```
-
-| Option | Beschreibung |
-|--------|--------------|
-| `--force` | vorhandene Bilder neu erzeugen |
-| `--size <px>` | Kantenlänge (Standard: 1024) |
-| `--steps <n>` | Diffusions-Schritte 1–8 (Standard: 4) |
-
-Das Motiv steuerst du über `image_subject` (kurze **englische** Beschreibung) im
-Rezept-Header; ohne Bild zeigt die Karte ein getöntes Platzhalter-Badge mit der Initiale.
-
----
-
-## Grundfarbe pro Rezept
-
-Die Farbe (Akzente, Flächen, Formen) wird in dieser Reihenfolge bestimmt:
-
-1. `theme_color` im Header (`#hex`),
-2. sonst eine repräsentative Farbe **aus dem generierten Bild**,
-3. sonst ein deterministischer Wert aus dem Titel.
+```
+Rezepte/
+  md/<Kategorie>/<rezept>.md
+  pdf/<Kategorie>/<rezept>.pdf
+```
 
 ---
 
 ## Projektstruktur
 
 ```
-recipes/             Rezepte (.md) – rekursiv, beliebige Unterordner
-templates/           card.typ – Typst-Layout der Karte
-fonts/               gebündelte Schrift (Jost, OFL) für reproduzierbares Rendering
-src/                 CLI & Logik (Parser, Skalierung, Filter, Theming, Render)
-scripts/             add.ts (Orchestrator), import-photo.ts, gen-images.ts, bot.ts
-assets/              generierte Aquarell-Symbole
-out/                 erzeugte PDFs (nicht versioniert)
-recipe-bot/          Home-Assistant-Add-on (Telegram-Bot)
+src/routes/        SvelteKit-Seiten (Bibliothek, Rezept, Import, Inventar, Wochenplan,
+                   Einkaufsliste, Statistik, Einstellungen, Admin, Login/Pending)
+src/auth.ts        Google-OAuth (Auth.js)
+core/              Domänenlogik: Parser, Skalierung, Theming, Render, Heuristiken
+core/services/     DB + Migrationen, Bibliothek, Import, Bilder, Bring, Kalender,
+                   Inventar, Drive-Sync, Nutzer
+templates/         card.typ – Typst-Layout der Rezeptkarte
+fonts/             gebündelte Schrift (Jost, OFL)
+scripts/           CLI (cli.ts), import, gen-images, add, refresh, bot, seed
+assets/            generierte Aquarell-Symbole (Cache)
+recipes/           Rezept-Markdown (CLI-Eingabe / Seed-Quelle)
+recipe-bot/        Legacy Home-Assistant-Add-on (durch VPS-Docker abgelöst)
+deploy/            nginx-Konfiguration
+Dockerfile, docker-compose.yml
 ```
-
-## Rezept in einem Schritt anlegen
-
-```bash
-npm run add -- foto.heic                    # Import → Bild → PDF in einem Lauf
-npm run add -- "https://example.com/rezept"
-npm run add -- "Rezepttext …"
-```
-
-## Bibliothek vervollständigen (Bilder + PDFs)
-
-Für eine **bestehende Sammlung** (z. B. nach einem Reimport): fehlende Aquarell-Bilder
-erzeugen und alle PDFs rendern – in einem Befehl, mit `--input`/`--out` durchgereicht:
-
-```bash
-npm run refresh                                              # ./recipes → ./out
-npm run refresh -- --input ~/Drive/Rezepte/md \
-                  --out ~/Drive/Rezepte/pdf                  # Reimport
-npm run refresh -- --category backen                         # nur Kategorie
-```
-
----
-
-## Telegram-Bot (komfortabelster Weg)
-
-Ein Telegram-Bot nimmt **Foto, Link oder Text** direkt im Chat entgegen, fährt die
-Pipeline und schickt die **fertige PDF zurück in den Chat**. Befehle wie `/start`
-liefern eine Kurzhilfe. Anschließend fragt der Bot, ob das Rezept in die
-**Bibliothek (Google Drive)** übernommen werden soll.
-
-**Lokal testen** (z. B. auf dem Mac):
-
-```bash
-# .env: TELEGRAM_BOT_TOKEN (von @BotFather) und optional
-#       ALLOWED_TELEGRAM_USERS=<id1>,<id2>   (eigene IDs via @userinfobot)
-npm run bot
-```
-
-**Dauerbetrieb als Home-Assistant-Add-on** (empfohlen, läuft 24/7 auf dem Pi):
-
-1. Home Assistant → **Einstellungen → Add-ons → Add-on-Store → ⋮ → Repositories**:
-   `https://github.com/acebarn/recipe-cards` hinzufügen.
-2. Add-on **„Rezeptkarten-Bot"** installieren.
-3. Im Tab **Konfiguration** eintragen: `telegram_bot_token`, `allowed_telegram_users`
-   (komma-getrennt), `pixazo_api_key`, `gemini_api_key`.
-4. **Starten.** Danach dem Bot in Telegram ein Foto/Link/Text senden → PDF kommt zurück.
-
-### Bibliothek in Google Drive
-
-Nach Ansicht des PDFs bietet der Bot **„Ja, speichern" / „Nein"** an. Bei „Ja" werden
-**PDF und Rezept (.md)** – getrennt nach Typ und Kategorie – in Google Drive abgelegt
-(per **rclone**):
-
-```
-Rezepte/
-  pdf/<Kategorie>/<rezept>.pdf
-  md/<Kategorie>/<rezept>.md
-```
-
-(Das Aquarell-JPG wird nicht in Drive gespeichert.)
-
-Einrichtung (einmalig):
-
-1. **Drive-Ordner** `Rezepte` anlegen. Bei Service-Account-Nutzung den Ordner für die
-   Service-Account-E-Mail **freigeben** (Bearbeiter); bei OAuth entfällt das.
-2. **rclone-Remote** erstellen: auf einem Rechner `rclone config` ausführen (Typ `drive`,
-   OAuth **oder** Service-Account). Den Namen des Remotes merken (Standard hier: `drive`).
-3. Inhalt von `rclone.conf` (Ausgabe von `rclone config file` → Datei anzeigen) in die
-   Add-on-Option **`rclone_config`** kopieren. Optional `drive_remote` und `drive_folder`
-   anpassen (Standard `drive` bzw. `Rezepte`).
-
-Ist `rclone_config` leer, entfällt die Speichern-Abfrage – der Bot schickt nur die PDF.
-
-Technik: Long-Polling (nur ausgehende Verbindungen, kein offener Port), Typst-aarch64
-+ gebündelte Schrift im Container, rclone für Drive, Auto-Neustart bei Aussetzern.
-**Speicherplatz:** Da die Bibliothek in Drive liegt, sind die lokalen Dateien nur
-Arbeitskopien – sie werden nach der Speichern-Entscheidung sofort und als Sicherheitsnetz
-nach 24 h (Waisen) bzw. 1 h (Downloads/PDFs) automatisch entfernt.
-Add-on-Dateien: [`recipe-bot/`](recipe-bot/).
