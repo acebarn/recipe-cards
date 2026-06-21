@@ -103,7 +103,7 @@
                   <label class="inv-row">
                     <input type="checkbox" name="inStock" value={m.normalized} checked />
                     <span class="nm">{m.label}</span>
-                    {#if m.qty}<span class="q">{m.qty}</span>{/if}
+                    {#if m.low}<span class="q low">wenig</span>{:else if m.qty}<span class="q">{m.qty}</span>{/if}
                     <span class="loc">{m.location}</span>
                   </label>
                 {/each}
@@ -447,6 +447,14 @@
   .inv-row .q {
     font-size: 0.82rem;
     color: var(--muted);
+  }
+  .inv-row .q.low {
+    font-weight: 700;
+    color: #9a6a00;
+    background: #ffe7a8;
+    border: 1.5px solid #d8a417;
+    border-radius: 999px;
+    padding: 0.02rem 0.4rem;
   }
   .inv-row .loc {
     font-size: 0.72rem;

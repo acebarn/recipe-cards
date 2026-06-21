@@ -55,7 +55,13 @@ export const load: PageServerLoad = ({ params, locals }) => {
   // Inventar-Abgleich: welche (Nicht-Standard-)Zutaten liegen bereits im Vorrat?
   // Dient dem "noch vorrätig?"-Dialog beim Auf-die-Einkaufsliste-Setzen.
   const inventoryEnabled = locals.user ? isInventoryEnabled(locals.user.id) : false;
-  let inventoryMatches: { label: string; normalized: string; qty: string; location: string }[] = [];
+  let inventoryMatches: {
+    label: string;
+    normalized: string;
+    qty: string;
+    low: boolean;
+    location: string;
+  }[] = [];
   if (locals.user && inventoryEnabled) {
     const map = inventoryMap(getHouseholdId(locals.user.id));
     const seen = new Set<string>();
@@ -68,7 +74,8 @@ export const load: PageServerLoad = ({ params, locals }) => {
         inventoryMatches.push({
           label: hit.name,
           normalized: hit.normalized,
-          qty: hit.quantity,
+          qty: `${hit.amount}×`,
+          low: hit.low,
           location: hit.location === "freezer" ? "🧊 Tiefkühl" : "🗄️ Vorrat",
         });
       }

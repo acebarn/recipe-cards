@@ -3,9 +3,11 @@ import { getBringProvider } from "$core/services/shopping/account.ts";
 import { getHousehold, getHouseholdId, listMembers } from "$core/services/inventory/household.ts";
 import {
   addItem,
+  adjustAmount,
   listItems,
   removeItem,
-  updateItem,
+  setGroup,
+  setLow,
   type InventoryItem,
   type InventoryLocation,
 } from "$core/services/inventory/inventory.ts";
@@ -116,9 +118,10 @@ export const actions: Actions = {
     const name = String(data.get("name") ?? "").trim();
     if (!name) return fail(400, { error: "Name angeben." });
     const group = String(data.get("group") ?? "").trim() || suggestGroup(householdId, name);
+    const amount = Number(data.get("amount") ?? "1");
     addItem(householdId, {
       name,
-      quantity: String(data.get("quantity") ?? ""),
+      amount: Number.isFinite(amount) ? amount : 1,
       location: loc(data.get("location")),
       group,
       userId,
@@ -126,18 +129,33 @@ export const actions: Actions = {
     return { ok: `„${name}" im Vorrat ergänzt.` };
   },
 
-  updateItem: async ({ request, locals }) => {
+  adjustAmount: async ({ request, locals }) => {
     const userId = requireUser(locals);
     const householdId = getHouseholdId(userId);
     const data = await request.formData();
     const id = Number(data.get("id"));
-    if (!id) return fail(400, { error: "Unbekannter Posten." });
-    updateItem(householdId, id, {
-      quantity: String(data.get("quantity") ?? ""),
-      group: String(data.get("group") ?? "").trim() || null,
-      userId,
-    });
-    return { ok: "Aktualisiert." };
+    const delta = Number(data.get("delta"));
+    if (id && Number.isFinite(delta)) adjustAmount(householdId, id, delta, userId);
+    return { ok: "" };
+  },
+
+  toggleLow: async ({ request, locals }) => {
+    const userId = requireUser(locals);
+    const householdId = getHouseholdId(userId);
+    const data = await request.formData();
+    const id = Number(data.get("id"));
+    const low = String(data.get("low") ?? "") === "1";
+    if (id) setLow(householdId, id, low, userId);
+    return { ok: "" };
+  },
+
+  setGroup: async ({ request, locals }) => {
+    const userId = requireUser(locals);
+    const householdId = getHouseholdId(userId);
+    const data = await request.formData();
+    const id = Number(data.get("id"));
+    if (id) setGroup(householdId, id, String(data.get("group") ?? "").trim() || null, userId);
+    return { ok: "" };
   },
 
   removeItem: async ({ request, locals }) => {
@@ -170,9 +188,9 @@ export const actions: Actions = {
   addGroup: async ({ request, locals }) => {
     const householdId = getHouseholdId(requireUser(locals));
     const name = String((await request.formData()).get("name") ?? "").trim();
-    if (!name) return fail(400, { error: "Name angeben." });
+    if (!name) return fail(400, { groupError: "Name angeben." });
     addGroup(householdId, name);
-    return { ok: `Gruppe „${name}" angelegt.` };
+    return { groupOk: `Gruppe „${name}" angelegt.` };
   },
 
   renameGroup: async ({ request, locals }) => {
@@ -181,13 +199,13 @@ export const actions: Actions = {
     const id = Number(data.get("id"));
     const name = String(data.get("name") ?? "").trim();
     if (id && name) renameGroup(householdId, id, name);
-    return { ok: "Gruppe umbenannt." };
+    return { groupOk: "Gespeichert." };
   },
 
   deleteGroup: async ({ request, locals }) => {
     const householdId = getHouseholdId(requireUser(locals));
     const id = Number((await request.formData()).get("id"));
     if (id) deleteGroup(householdId, id);
-    return { ok: "Gruppe gelöscht." };
+    return { groupOk: "Gruppe gelöscht." };
   },
 };

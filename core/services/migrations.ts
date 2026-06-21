@@ -245,4 +245,15 @@ CREATE TABLE inventory_group_memory (
 );
 `,
   },
+  {
+    id: "007_inventory_amount",
+    sql: `
+-- Numerische Menge (für +/- Spinner) + "wenig"-Markierung je Posten.
+ALTER TABLE inventory_items ADD COLUMN amount INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE inventory_items ADD COLUMN low INTEGER NOT NULL DEFAULT 0;
+-- Bestehende Textmengen, die mit einer Zahl beginnen, best effort übernehmen.
+UPDATE inventory_items SET amount = CAST(quantity AS INTEGER)
+  WHERE quantity GLOB '[0-9]*' AND CAST(quantity AS INTEGER) > 0;
+`,
+  },
 ];
