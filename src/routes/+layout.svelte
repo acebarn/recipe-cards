@@ -32,6 +32,9 @@
       <div class="nav-actions">
         <a class="navbtn" href="/restefest" onclick={close}>🥕 Restefest</a>
         <a class="navbtn" href="/einkaufsliste" onclick={close}>🛒 Einkaufsliste</a>
+        {#if data.inventoryEnabled}
+          <a class="navbtn" href="/inventar" onclick={close}>📦 Inventar</a>
+        {/if}
         <a class="navbtn" href="/wochenplan" onclick={close}>📅 Wochenplan</a>
         <a class="navbtn" href="/statistik" onclick={close}>📊 Statistik</a>
         <a class="navbtn" href="/add" onclick={close}>+ Hinzufügen</a>

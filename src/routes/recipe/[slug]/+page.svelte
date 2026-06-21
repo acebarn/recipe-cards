@@ -15,6 +15,11 @@
   let regenerating = $state(false);
   let addingToList = $state(false);
 
+  // Einkaufsliste + "noch vorrätig?"-Dialog
+  let invMatches = $derived(data.inventoryMatches ?? []);
+  let showInvDialog = $state(false);
+  let addListForm: HTMLFormElement;
+
   // Einplanen-Panel
   let showPlan = $state(false);
   let planning = $state(false);
@@ -64,6 +69,7 @@
       <a class="btn" href={cookHref}>🍳 Kochmodus</a>
       <a class="btn" href={pdfHref} target="_blank" rel="noopener">Rezeptkarte</a>
       <form
+        bind:this={addListForm}
         method="POST"
         action="?/addToList"
         use:enhance={() => {
@@ -71,13 +77,48 @@
           return async ({ update }) => {
             await update();
             addingToList = false;
+            showInvDialog = false;
           };
         }}
       >
         <input type="hidden" name="scale" value={scale} />
-        <button class="btn" type="submit" disabled={addingToList}>
+        <button
+          class="btn"
+          type="button"
+          disabled={addingToList}
+          onclick={() => (invMatches.length ? (showInvDialog = true) : addListForm.requestSubmit())}
+        >
           {addingToList ? "… wird hinzugefügt" : "🛒 Auf die Einkaufsliste"}
         </button>
+
+        {#if showInvDialog}
+          <div class="modal-backdrop">
+            <div class="modal" role="dialog" aria-modal="true" aria-label="Vorrat prüfen">
+              <h3>Schon im Vorrat?</h3>
+              <p class="hint">
+                Hake ab, was du noch da hast – nur der Rest kommt auf die Einkaufsliste.
+              </p>
+              <div class="inv-list">
+                {#each invMatches as m (m.normalized)}
+                  <label class="inv-row">
+                    <input type="checkbox" name="inStock" value={m.normalized} checked />
+                    <span class="nm">{m.label}</span>
+                    {#if m.qty}<span class="q">{m.qty}</span>{/if}
+                    <span class="loc">{m.location}</span>
+                  </label>
+                {/each}
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="btn" onclick={() => (showInvDialog = false)}>
+                  Abbrechen
+                </button>
+                <button type="submit" class="btn primary" disabled={addingToList}>
+                  {addingToList ? "… wird hinzugefügt" : "Auf die Liste"}
+                </button>
+              </div>
+            </div>
+          </div>
+        {/if}
       </form>
       <button class="btn" type="button" onclick={() => (showPlan = !showPlan)}>📅 Einplanen</button>
       {#if data.canManage}
@@ -343,6 +384,82 @@
   .msg.ok {
     background: #e6f4ea;
     color: #1e6b34;
+  }
+
+  /* "Schon im Vorrat?"-Dialog */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(26, 26, 26, 0.45);
+  }
+  .modal {
+    width: min(440px, 100%);
+    max-height: 85vh;
+    overflow: auto;
+    background: var(--paper, #f4efe3);
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    box-shadow: 6px 6px 0 var(--ink);
+    padding: 1rem 1.1rem 1.1rem;
+    text-align: left;
+  }
+  .modal h3 {
+    margin: 0 0 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .modal .hint {
+    margin: 0 0 0.8rem;
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+  .inv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .inv-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0.55rem;
+    background: #fff;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .inv-row input {
+    width: 1.15rem;
+    height: 1.15rem;
+    flex: none;
+    accent-color: var(--accent);
+  }
+  .inv-row .nm {
+    font-weight: 600;
+    flex: 1;
+    min-width: 0;
+  }
+  .inv-row .q {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .inv-row .loc {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 1rem;
   }
 
   .plan-box {

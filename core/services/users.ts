@@ -217,7 +217,28 @@ export function deleteUser(id: number): void {
     db.prepare("DELETE FROM standard_ingredients WHERE user_id = ?").run(id);
     db.prepare("DELETE FROM google_tokens WHERE user_id = ?").run(id);
     db.prepare("DELETE FROM calendar_settings WHERE user_id = ?").run(id);
+    // Haushalt: Mitgliedschaft lösen; wird der Haushalt dadurch leer, samt Inventar weg.
+    const h = db.prepare("SELECT household_id FROM users WHERE id = ?").get(id) as
+      | { household_id: number | null }
+      | undefined;
     db.prepare("DELETE FROM users WHERE id = ?").run(id);
+    const householdId = h?.household_id;
+    if (householdId) {
+      const remaining = db
+        .prepare("SELECT COUNT(*) AS n FROM users WHERE household_id = ?")
+        .get(householdId) as { n: number };
+      if (remaining.n === 0) {
+        for (const t of [
+          "inventory_items",
+          "inventory_templates",
+          "inventory_groups",
+          "inventory_group_memory",
+        ]) {
+          db.prepare(`DELETE FROM ${t} WHERE household_id = ?`).run(householdId);
+        }
+        db.prepare("DELETE FROM households WHERE id = ?").run(householdId);
+      }
+    }
   });
   tx();
 }
