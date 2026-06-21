@@ -51,10 +51,6 @@
 {:else}
   <div class="topbar">
     <span class="hh">🏠 {data.householdName}{data.memberCount > 1 ? ` · ${data.memberCount} Mitglieder` : ""}</span>
-    <form method="POST" action="?/toggleEnabled" use:enhance>
-      <input type="hidden" name="enabled" value="0" />
-      <button class="linkbtn" type="submit">Inventar deaktivieren</button>
-    </form>
   </div>
 
   <!-- Schnell-Erfassung -->
