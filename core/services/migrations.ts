@@ -182,4 +182,67 @@ ALTER TABLE calendar_settings ADD COLUMN dinner_allday    INTEGER NOT NULL DEFAU
 ALTER TABLE calendar_settings ADD COLUMN snack_allday     INTEGER NOT NULL DEFAULT 0;
 `,
   },
+  {
+    id: "006_inventory",
+    sql: `
+-- Geteilter Geltungsbereich fürs Inventar. Jeder Nutzer hat genau einen Haushalt
+-- (persönlich, lazy angelegt); ein gemeinsamer Haushalt entsteht durch Zuordnung
+-- weiterer Mitglieder.
+CREATE TABLE households (
+  id         INTEGER PRIMARY KEY,
+  name       TEXT NOT NULL,
+  created_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL
+);
+ALTER TABLE users ADD COLUMN household_id INTEGER REFERENCES households(id);
+ALTER TABLE users ADD COLUMN inventory_enabled INTEGER NOT NULL DEFAULT 1;
+
+-- Inventar-Posten je Haushalt (Bereich: Tiefkühl/Vorrat; Menge frei als Text).
+CREATE TABLE inventory_items (
+  id           INTEGER PRIMARY KEY,
+  household_id INTEGER NOT NULL REFERENCES households(id),
+  name         TEXT NOT NULL,
+  normalized   TEXT NOT NULL,
+  quantity     TEXT,
+  location     TEXT NOT NULL DEFAULT 'pantry',   -- 'pantry' | 'freezer'
+  group_name   TEXT,
+  updated_by   INTEGER REFERENCES users(id),
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL,
+  UNIQUE(household_id, location, normalized)
+);
+CREATE INDEX idx_inventory_household ON inventory_items(household_id);
+
+-- Vorlagen ("Standardartikel") zum schnellen Anlegen wiederkehrender Posten.
+CREATE TABLE inventory_templates (
+  id               INTEGER PRIMARY KEY,
+  household_id     INTEGER NOT NULL REFERENCES households(id),
+  name             TEXT NOT NULL,
+  normalized       TEXT NOT NULL,
+  group_name       TEXT,
+  default_location TEXT NOT NULL DEFAULT 'pantry',
+  created_at       TEXT NOT NULL,
+  UNIQUE(household_id, normalized)
+);
+
+-- Gruppen je Haushalt (Vorschläge + eigene).
+CREATE TABLE inventory_groups (
+  id           INTEGER PRIMARY KEY,
+  household_id INTEGER NOT NULL REFERENCES households(id),
+  name         TEXT NOT NULL,
+  sort         INTEGER NOT NULL DEFAULT 0,
+  created_at   TEXT NOT NULL,
+  UNIQUE(household_id, name)
+);
+
+-- Gemerkte Gruppenzuordnung je Artikelname (normalisiert), je Haushalt.
+CREATE TABLE inventory_group_memory (
+  household_id INTEGER NOT NULL REFERENCES households(id),
+  normalized   TEXT NOT NULL,
+  group_name   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL,
+  PRIMARY KEY (household_id, normalized)
+);
+`,
+  },
 ];

@@ -11,6 +11,12 @@ export interface AddResult {
   added: number;
   merged: number;
   skipped: number;
+  inStock: number; // im Inventar vorrätig bestätigt → übersprungen
+}
+
+export interface AddOptions {
+  /** Normalisierte Namen, die als vorrätig bestätigt wurden → nicht auf die Liste. */
+  excludeNormalized?: Set<string>;
 }
 
 interface Agg {
@@ -37,7 +43,9 @@ export async function addRecipeIngredients(
   userId: number,
   ingredients: IngredientSection[],
   scale: number,
+  opts: AddOptions = {},
 ): Promise<AddResult> {
+  const exclude = opts.excludeNormalized ?? new Set<string>();
   // Aktuellen Stand der offenen Posten als Ausgangsbasis laden.
   const map = new Map<string, Agg>();
   for (const item of await provider.list()) {
@@ -54,6 +62,7 @@ export async function addRecipeIngredients(
   }
 
   let skipped = 0;
+  let inStock = 0;
   for (const line of flattenIngredients(ingredients)) {
     const { qty, unit, name } = parseIngredient(line);
     if (!name) continue;
@@ -61,8 +70,12 @@ export async function addRecipeIngredients(
       skipped++;
       continue;
     }
-    const scaledQty = qty === null ? null : qty * scale;
     const norm = normalizeName(name);
+    if (exclude.has(norm)) {
+      inStock++;
+      continue;
+    }
+    const scaledQty = qty === null ? null : qty * scale;
     const existing = map.get(norm);
     if (!existing) {
       map.set(norm, { name, qty: scaledQty, unit, texts: [], isNew: true, touched: true });
@@ -89,5 +102,5 @@ export async function addRecipeIngredients(
     }
   }
 
-  return { added, merged, skipped };
+  return { added, merged, skipped, inStock };
 }
