@@ -82,9 +82,21 @@ export const actions: Actions = {
   },
 
   photo: async ({ request, locals }) => {
-    const files = (await request.formData())
-      .getAll("photos")
-      .filter((f): f is File => f instanceof File && f.size > 0);
+    let files: File[];
+    try {
+      files = (await request.formData())
+        .getAll("photos")
+        .filter((f): f is File => f instanceof File && f.size > 0);
+    } catch (e) {
+      // Body-Stream zu groß (BODY_SIZE_LIMIT) o.Ä. – sonst würde der Fehler als 500 durchschlagen.
+      const tooLarge = (e as { status?: number }).status === 413;
+      return fail(tooLarge ? 413 : 400, {
+        tab: "photo",
+        error: tooLarge
+          ? "Die Fotos sind zu groß. Bitte kleinere Bilder wählen oder weniger Seiten auf einmal hochladen."
+          : `Upload fehlgeschlagen: ${(e as Error).message}`,
+      });
+    }
     if (!files.length) return fail(400, { tab: "photo", error: "Bitte mindestens ein Foto wählen." });
 
     const dir = mkdtempSync(join(tmpdir(), "recipe-add-"));
