@@ -256,4 +256,31 @@ UPDATE inventory_items SET amount = CAST(quantity AS INTEGER)
   WHERE quantity GLOB '[0-9]*' AND CAST(quantity AS INTEGER) > 0;
 `,
   },
+  {
+    id: "008_import_retry",
+    sql: `
+-- Auto-Retry beim Rezept-Import (Default an; pro Nutzer abschaltbar).
+ALTER TABLE users ADD COLUMN import_retry_enabled INTEGER NOT NULL DEFAULT 1;
+
+-- Hintergrund-Warteschlange: speichert die Nutzereingabe, damit sie bei
+-- Gemini-Überlastung nicht verloren geht und automatisch erneut versucht wird,
+-- bis der Import gelingt.
+CREATE TABLE import_jobs (
+  id          INTEGER PRIMARY KEY,
+  user_id     INTEGER REFERENCES users(id),
+  source      TEXT NOT NULL,                       -- 'link' | 'reel' | 'text' | 'photo' (Anzeige)
+  payload     TEXT NOT NULL,                        -- JSON-serialisierte Eingabe (Text/URL bzw. Bilder base64)
+  label       TEXT NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'pending',      -- 'pending' | 'done' | 'error'
+  attempts    INTEGER NOT NULL DEFAULT 0,
+  last_error  TEXT,
+  slug        TEXT,                                 -- gesetzt bei Erfolg
+  created_at  TEXT NOT NULL,
+  next_try_at TEXT NOT NULL,                        -- frühester nächster Versuch (ISO)
+  updated_at  TEXT NOT NULL
+);
+CREATE INDEX idx_import_jobs_due ON import_jobs(status, next_try_at);
+CREATE INDEX idx_import_jobs_user ON import_jobs(user_id, status);
+`,
+  },
 ];

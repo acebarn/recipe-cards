@@ -1,5 +1,6 @@
 <script lang="ts">
   import { browser } from "$app/environment";
+  import { enhance } from "$app/forms";
   import { flip } from "svelte/animate";
   import { fade, slide } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
@@ -131,9 +132,42 @@
     diff = null;
     timeBucket = null;
   };
+
+  // Import-Warteschlange (Auto-Retry bei Gemini-Überlastung)
+  const SOURCE_LABEL: Record<string, string> = {
+    link: "🔗 Link",
+    reel: "🎬 Reel",
+    text: "📝 Text",
+    photo: "📷 Foto",
+  };
+  let pending = $derived(data.imports.filter((j) => j.status === "pending"));
+  let failed = $derived(data.imports.filter((j) => j.status === "error"));
 </script>
 
 <svelte:head><title>SCHMACKOFATZ</title></svelte:head>
+
+{#if pending.length}
+  <div class="import-banner pending">
+    <span class="spin">⏳</span>
+    <span class="txt">
+      {pending.length === 1 ? "1 Rezept wird" : `${pending.length} Rezepte werden`} im Hintergrund erstellt
+      (Dienst ausgelastet) – erscheint hier, sobald es fertig ist.
+    </span>
+  </div>
+{/if}
+
+{#each failed as job (job.id)}
+  <div class="import-banner failed">
+    <span class="txt">
+      ⚠️ Import fehlgeschlagen ({SOURCE_LABEL[job.source] ?? job.source}: {job.label})
+      {#if job.last_error}<span class="why">— {job.last_error}</span>{/if}
+    </span>
+    <form method="POST" action="?/dismissImport" use:enhance>
+      <input type="hidden" name="id" value={job.id} />
+      <button type="submit" class="dismiss" aria-label="Verwerfen">✕</button>
+    </form>
+  </div>
+{/each}
 
 <div class="bar">
   <div class="searchrow">
@@ -283,6 +317,49 @@
 {/snippet}
 
 <style>
+  /* Import-Warteschlange (Auto-Retry) */
+  .import-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.85rem;
+    margin-bottom: 0.7rem;
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    box-shadow: 3px 3px 0 var(--ink);
+    font-weight: 500;
+  }
+  .import-banner.pending {
+    background: var(--yellow);
+  }
+  .import-banner.failed {
+    background: #fde8e8;
+    color: #9b1c1c;
+  }
+  .import-banner .txt {
+    flex: 1;
+    min-width: 0;
+  }
+  .import-banner .why {
+    font-weight: 400;
+    opacity: 0.85;
+  }
+  .import-banner .dismiss {
+    flex: none;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.3rem 0.55rem;
+    cursor: pointer;
+  }
+  .import-banner .spin {
+    flex: none;
+  }
+
   /* Anker für die beim Filtern abgelösten (position:absolute) Karten */
   .recipe-grid,
   .recipe-list {

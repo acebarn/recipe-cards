@@ -258,23 +258,39 @@ export async function resolveInput(positionals: string[]): Promise<Input | null>
 // ---------------- Gemini-Aufruf ----------------
 
 /**
+ * Markiert einen Fehler als vorübergehend (Auto-Retry sinnvoll). Der Import-Worker
+ * (import-queue.ts) versucht solche Jobs später erneut, statt sie zu verwerfen.
+ */
+function retryable(message: string): Error {
+  const e = new Error(message) as Error & { retryable?: boolean };
+  e.retryable = true;
+  return e;
+}
+
+/** True, wenn der Fehler von einem späteren Versuch geheilt werden könnte (Überlastung/Netz). */
+export function isRetryableError(e: unknown): boolean {
+  return !!(e && typeof e === "object" && (e as { retryable?: boolean }).retryable === true);
+}
+
+/**
  * Übersetzt Gemini-HTTP-Fehler in verständliche Meldungen (für Nutzer ohne
  * technischen Hintergrund). 503/„overloaded" = hohe Nachfrage, 429 = Tageslimit.
+ * Vorübergehende Fehler werden als retryable markiert (Auto-Retry).
  */
 async function geminiError(res: Response): Promise<Error> {
   const body = (await res.text()).slice(0, 600);
   if (res.status === 503 || /overloaded|unavailable|high demand/i.test(body)) {
-    return new Error(
+    return retryable(
       "Der Rezept-Dienst ist gerade stark ausgelastet (hohe Nachfrage). Bitte versuche es in ein paar Minuten noch einmal.",
     );
   }
   if (res.status === 429 || /resource_exhausted|quota/i.test(body)) {
-    return new Error(
+    return retryable(
       "Das Tageslimit für den automatischen Import ist erreicht. Bitte versuche es später noch einmal – nach Mitternacht (US-Zeit) steht wieder Kontingent bereit.",
     );
   }
   if (res.status >= 500) {
-    return new Error("Der Rezept-Dienst hat gerade ein Problem. Bitte versuche es gleich noch einmal.");
+    return retryable("Der Rezept-Dienst hat gerade ein Problem. Bitte versuche es gleich noch einmal.");
   }
   // Unerwartet (z.B. 400) – technische Info für die Diagnose behalten.
   return new Error(`Rezept-Import fehlgeschlagen (HTTP ${res.status} ${res.statusText}): ${body}`);
@@ -282,11 +298,17 @@ async function geminiError(res: Response): Promise<Error> {
 
 export async function callGemini(parts: Part[], apiKey: string, model: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.2 } }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.2 } }),
+    });
+  } catch (e) {
+    // Netzwerk-/DNS-Fehler → vorübergehend, später erneut versuchen.
+    throw retryable(`Der Rezept-Dienst ist gerade nicht erreichbar (${(e as Error).message}).`);
+  }
 
   if (!res.ok) {
     throw await geminiError(res);

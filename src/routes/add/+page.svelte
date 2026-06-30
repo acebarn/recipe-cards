@@ -30,6 +30,7 @@
 </div>
 
 {#if form?.error}<p class="msg err">{form.error}</p>{/if}
+{#if form?.queued}<p class="msg ok">⏳ Der Rezept-Dienst ist gerade ausgelastet. Deine Eingabe wurde gespeichert und wird automatisch weiter versucht – das fertige Rezept erscheint danach in deiner Bibliothek.</p>{/if}
 {#if busy}<p class="msg info">Rezept wird extrahiert … das kann einen Moment dauern.</p>{/if}
 
 {#if tab === "link"}
@@ -141,6 +142,10 @@
   }
   .msg.info {
     background: var(--yellow);
+    color: var(--ink);
+  }
+  .msg.ok {
+    background: #bfe6c9;
     color: var(--ink);
   }
 </style>

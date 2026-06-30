@@ -50,6 +50,26 @@
     </form>
   </div>
 
+  <div class="setting static">
+    <span class="ic">🔁</span>
+    <span class="body">
+      <span class="t">Auto-Retry beim Import</span>
+      <span class="d">Bei ausgelastetem Rezept-Dienst die Eingabe speichern und im Hintergrund weiter versuchen, bis es klappt.</span>
+    </span>
+    <form method="POST" action="?/toggleImportRetry" use:enhance>
+      <input type="hidden" name="enabled" value={data.importRetryEnabled ? "" : "1"} />
+      <button
+        class="switch"
+        class:on={data.importRetryEnabled}
+        role="switch"
+        aria-checked={data.importRetryEnabled}
+        type="submit"
+      >
+        <span class="sw-lbl">{data.importRetryEnabled ? "aktiv" : "aus"}</span><span class="knob"></span>
+      </button>
+    </form>
+  </div>
+
   <a class="setting" href="/einstellungen/haushalt">
     <span class="ic">🏠</span>
     <span class="body">

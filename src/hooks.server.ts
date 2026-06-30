@@ -1,4 +1,5 @@
 import { startSyncWorker } from "$core/services/drive-sync.ts";
+import { startImportWorker } from "$core/services/import-queue.ts";
 import { getUserByEmail, isAdmin } from "$core/services/users.ts";
 import { redirect, type Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
@@ -6,6 +7,8 @@ import { authHandle } from "./auth.ts";
 
 // Drive-Sync-Worker beim Server-Start anstoßen (No-op ohne RECIPE_SYNC=1).
 startSyncWorker();
+// Import-Retry-Worker: nimmt bei Überlastung eingereihte Importe wieder auf.
+startImportWorker();
 
 // Routen, die ohne Freigabe erreichbar sind.
 const PUBLIC_PATHS = new Set(["/login", "/pending"]);
