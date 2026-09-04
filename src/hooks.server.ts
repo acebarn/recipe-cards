@@ -5,6 +5,33 @@ import { redirect, type Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { authHandle } from "./auth.ts";
 
+/**
+ * Node beendet den Prozess bei unbehandelten Promise-Rejections. In Produktion
+ * hat das den Server seit Mitte August mehrfach umgebracht: irgendwo landet ein
+ * SvelteKit-Redirect in einem Promise, das niemand abwartet (Rejection-Grund
+ * "#<Redirect>"). Ein Familien-Rezeptbuch soll daran nicht sterben – deshalb
+ * protokollieren statt abstürzen, inklusive Redirect-Ziel, damit die Quelle beim
+ * nächsten Auftreten eingegrenzt werden kann.
+ */
+function describeRejection(reason: unknown): string {
+  if (reason && typeof reason === "object") {
+    const r = reason as { status?: number; location?: string; stack?: string; message?: string };
+    if (typeof r.status === "number" && typeof r.location === "string") {
+      return `Redirect(${r.status} → ${r.location})`;
+    }
+    if (r.stack) return r.stack;
+    if (r.message) return `${reason.constructor?.name ?? "Error"}: ${r.message}`;
+  }
+  return String(reason);
+}
+
+process.on("unhandledRejection", (reason) => {
+  console.error(
+    `[${new Date().toISOString()}] Unbehandelte Promise-Rejection (Server läuft weiter):`,
+    describeRejection(reason),
+  );
+});
+
 // Drive-Sync-Worker beim Server-Start anstoßen (No-op ohne RECIPE_SYNC=1).
 startSyncWorker();
 // Import-Retry-Worker: nimmt bei Überlastung eingereihte Importe wieder auf.
