@@ -1,7 +1,7 @@
 // Schema-Migrationen als eingebettete SQL-Strings.
 // Bewusst KEIN Dateisystem-Lesen: db.ts wird sowohl im gebündelten SvelteKit-
-// Server (Vite kopiert keine losen .sql-Dateien) als auch in der plain-Node-CLI
-// genutzt. Eingebettete Strings funktionieren in beiden Umgebungen.
+// Server (Vite kopiert keine losen .sql-Dateien) als auch von den plain-Node-
+// Wartungsskripten genutzt. Eingebettete Strings funktionieren in beiden Umgebungen.
 //
 // Neue Migration: Eintrag mit nächster id (002_..., 003_...) am Ende anhängen.
 // Bereits angewandte ids werden in schema_migrations vermerkt und übersprungen.
