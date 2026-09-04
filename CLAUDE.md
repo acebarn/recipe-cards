@@ -62,6 +62,25 @@ Kopie für Drive.
 **Dominierend ist SQLite.** Drive wird im Betrieb *nie* gelesen — der einzige
 Rückweg ist `npm run seed` als manuelle Wiederherstellung.
 
+### Nutzungsmessung
+
+Seit 04.09. protokolliert die App, was getan wird — in `audit_log` (leer seit
+Migration 001, befüllt seit 009), ausgewertet im Nutzungsblock auf `/statistik`
+(`core/services/events.ts`).
+
+Serverseitig verbucht: `recipe_view`, `cook_start`, `pdf_export` (erst nach
+erfolgreichem Render), `import` (mit Quelle), `shopping_add`, `plan_meal`. Die
+Suche filtert clientseitig über den Volldatensatz — sie meldet deshalb als
+einzige entprellt an `POST /api/events`, der ausschließlich `search` von
+angemeldeten Nutzern annimmt.
+
+**Regeln, die nicht aufgeweicht werden sollten:** keine IP, kein User-Agent,
+kein Referrer; Suchbegriffe normalisiert und gekappt; Aufbewahrung 12 Monate
+(täglicher Aufräumlauf via `startEventRetention()`); `recordEvent()` schluckt
+jeden Fehler, weil Messen nie einen Request kosten darf. Bei drei namentlich
+bekannten Nutzern ist jedes Event faktisch personenbezogen — deshalb bleibt die
+Auswertung aggregiert.
+
 ## Lokal arbeiten
 
 ```bash
@@ -168,6 +187,11 @@ ist vom VPS entfernt.
 - **Gemini Free-Tier-Tagescap:** Importe scheitern bei Erschöpfung (der Auto-Retry
   aus `import-queue.ts` fängt es ab, löst es aber nicht). Billing am Google-Key
   aktivieren.
+- **`library.db` hat kein Backup.** Nach Drive gehen nur md, pdf und Bilder —
+  die Datenbank selbst nicht. Nutzer, Inventar, Bring-/Kalender-Verknüpfungen und
+  jetzt auch die Nutzungs-Events existieren nur einmal. Einzige Sicherung ist der
+  manuelle Stand `/opt/recipe-cards/web-data/library-backup-2026-09-04.db`. Eine
+  nächtliche Sicherung nach Drive wäre der nächste sinnvolle Schritt.
 - **`users.telegram_id` bleibt im Schema**, obwohl der Bot weg ist: das Bot-Konto
   (`telegram-26670255@bot.local`, id 3) ist `created_by` von drei Rezepten.
 
