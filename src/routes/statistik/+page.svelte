@@ -41,6 +41,10 @@
       count,
     }));
   });
+  // Bei drei Haushaltsmitgliedern ist "von wie vielen Personen" das wichtigere
+  // Signal als die reine Anzahl — sonst bestimmt eine vielklickende Person die
+  // Rangliste allein. Danach wird auch sortiert (siehe events.ts).
+  const personen = (n: number) => (n === 1 ? "1 Person" : `${n} Personen`);
   const nieLabel = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString("de-DE", { month: "short", year: "numeric" }) : "noch nie";
 
@@ -126,8 +130,14 @@
     {@render kpi(String(zaehler("import")), "Importe", "var(--red)")}
     {@render kpi(String(zaehler("shopping_add")), "auf die Liste", "var(--yellow)")}
     {@render kpi(String(zaehler("plan_meal")), "eingeplant", "var(--blue)")}
-    {@render kpi(String(u.total), "Aktionen gesamt", "var(--red)")}
+    {@render kpi(String(u.activeUsers), "aktive Personen", "var(--red)")}
+    {@render kpi(String(u.total), "Aktionen gesamt", "var(--blue)")}
   </section>
+
+  <p class="hint">
+    Ranglisten sind nach der Zahl <strong>verschiedener Personen</strong> sortiert, nicht nach
+    Klicks — sonst bestimmt eine einzelne vielnutzende Person das Bild.
+  </p>
 
   <div class="two">
     <section class="panel">
@@ -354,11 +364,19 @@
   </div>
 </section>
 
-{#snippet rezeptliste(items: { slug: string; title: string; count: number }[], einheit: string)}
+{#snippet rezeptliste(
+  items: { slug: string; title: string; count: number; users: number }[],
+  einheit: string,
+)}
   {#if items.length}
     <ul class="rliste">
       {#each items as r (r.slug)}
-        <li><a href={`/recipe/${r.slug}`}>{r.title}</a><span class="rval">{r.count} {einheit}</span></li>
+        <li>
+          <a href={`/recipe/${r.slug}`}>{r.title}</a>
+          <span class="rval">
+            <span class="stark">{personen(r.users)}</span> · {r.count} {einheit}
+          </span>
+        </li>
       {/each}
     </ul>
   {:else}
@@ -366,10 +384,15 @@
   {/if}
 {/snippet}
 
-{#snippet suchliste(items: { query: string; count: number; hits: number }[])}
+{#snippet suchliste(items: { query: string; count: number; hits: number; users: number }[])}
   <ul class="rliste">
     {#each items as q (q.query)}
-      <li><span class="qtext">„{q.query}"</span><span class="rval">{q.count}× · {q.hits} Treffer</span></li>
+      <li>
+        <span class="qtext">„{q.query}"</span>
+        <span class="rval">
+          <span class="stark">{personen(q.users)}</span> · {q.count}× · {q.hits} Treffer
+        </span>
+      </li>
     {/each}
   </ul>
 {/snippet}
@@ -462,6 +485,10 @@
     font-weight: 600;
   }
   .qtext {
+    font-weight: 600;
+  }
+  .rval .stark {
+    color: var(--ink);
     font-weight: 600;
   }
   .rval {

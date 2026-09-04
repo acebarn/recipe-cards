@@ -75,11 +75,15 @@ export interface RecipeCount {
   slug: string;
   title: string;
   count: number;
+  /** Wie viele verschiedene Personen — entzerrt Ranglisten, die sonst eine
+   *  vielklickende Person allein bestimmt. */
+  users: number;
 }
 export interface QueryCount {
   query: string;
   count: number;
   hits: number;
+  users: number;
 }
 export interface DayCount {
   day: string;
@@ -89,6 +93,8 @@ export interface DayCount {
 export interface UsageStats {
   days: number;
   total: number;
+  /** Personen mit mindestens einer Aktion im Zeitraum. */
+  activeUsers: number;
   firstEventAt: string | null;
   perAction: ActionCount[];
   topCooked: RecipeCount[];
@@ -106,12 +112,15 @@ export interface UsageStats {
 function topRecipes(action: EventAction, since: string, limit = 8): RecipeCount[] {
   return getDb()
     .prepare(
-      `SELECT a.recipe_slug AS slug, r.title AS title, COUNT(*) AS count
+      `SELECT a.recipe_slug AS slug,
+              r.title       AS title,
+              COUNT(*)      AS count,
+              COUNT(DISTINCT a.user_id) AS users
          FROM audit_log a
          JOIN recipes r ON r.slug = a.recipe_slug AND r.deleted_at IS NULL
         WHERE a.action = ? AND a.at >= ? AND a.recipe_slug IS NOT NULL
         GROUP BY a.recipe_slug
-        ORDER BY count DESC, r.title
+        ORDER BY users DESC, count DESC, r.title
         LIMIT ?`,
     )
     .all(action, since, limit) as RecipeCount[];
@@ -121,14 +130,14 @@ function topRecipes(action: EventAction, since: string, limit = 8): RecipeCount[
 function searches(since: string, nurLeer: boolean, limit = 10): QueryCount[] {
   const rows = getDb()
     .prepare(
-      `SELECT detail, COUNT(*) AS count
+      `SELECT detail, COUNT(*) AS count, COUNT(DISTINCT user_id) AS users
          FROM audit_log
         WHERE action = 'search' AND at >= ? AND detail IS NOT NULL
         GROUP BY detail
         ORDER BY count DESC
         LIMIT 400`,
     )
-    .all(since) as { detail: string; count: number }[];
+    .all(since) as { detail: string; count: number; users: number }[];
 
   // Gleiche Suchbegriffe mit unterschiedlicher Trefferzahl zusammenfassen.
   const zusammen = new Map<string, QueryCount>();
@@ -145,13 +154,16 @@ function searches(since: string, nurLeer: boolean, limit = 10): QueryCount[] {
     if (vorhanden) {
       vorhanden.count += row.count;
       vorhanden.hits = Math.max(vorhanden.hits, hits);
+      // Obergrenze: dieselbe Person kann in mehreren detail-Gruppen stecken,
+      // deshalb nicht addieren, sondern das Maximum nehmen.
+      vorhanden.users = Math.max(vorhanden.users, row.users);
     } else {
-      zusammen.set(parsed.q, { query: parsed.q, count: row.count, hits });
+      zusammen.set(parsed.q, { query: parsed.q, count: row.count, hits, users: row.users });
     }
   }
   return [...zusammen.values()]
     .filter((q) => (nurLeer ? q.hits === 0 : true))
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => b.users - a.users || b.count - a.count)
     .slice(0, limit);
 }
 
@@ -203,6 +215,11 @@ export function computeUsage(days = 90): UsageStats {
   return {
     days,
     total: (db.prepare("SELECT COUNT(*) c FROM audit_log WHERE at >= ?").get(since) as { c: number }).c,
+    activeUsers: (
+      db
+        .prepare("SELECT COUNT(DISTINCT user_id) c FROM audit_log WHERE at >= ? AND user_id IS NOT NULL")
+        .get(since) as { c: number }
+    ).c,
     firstEventAt:
       (db.prepare("SELECT MIN(at) a FROM audit_log").get() as { a: string | null }).a ?? null,
     perAction,
