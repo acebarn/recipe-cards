@@ -7,6 +7,7 @@ import {
 import { fetchReelCaption, isInstagramUrl } from "$core/services/reel.ts";
 import { fail } from "@sveltejs/kit";
 import { tracedRedirect } from "$lib/traced-redirect.ts";
+import { recordEvent } from "$core/services/events.ts";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -31,6 +32,7 @@ async function handleImport(tab: Tab, input: Input, locals: App.Locals) {
     }
     return fail(503, { tab, error: err.message });
   }
+  recordEvent("import", { userId: locals.user?.id, slug, detail: { source: tab } });
   throw tracedRedirect(303, `/recipe/${slug}`);
 }
 

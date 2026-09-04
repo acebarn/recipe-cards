@@ -4,6 +4,45 @@
 
   let { data }: { data: PageData } = $props();
   let s = $derived(data.stats);
+  let u = $derived(data.usage);
+
+  // ---- Nutzung ----
+  const AKTION_LABEL: Record<string, string> = {
+    recipe_view: "Aufrufe",
+    cook_start: "Kochmodus",
+    pdf_export: "Rezeptkarten",
+    import: "Importe",
+    shopping_add: "Einkaufsliste",
+    plan_meal: "Wochenplan",
+    search: "Suchen",
+  };
+  const QUELLE_LABEL: Record<string, string> = {
+    link: "Link",
+    reel: "Reel",
+    text: "Text",
+    photo: "Foto",
+  };
+  const zaehler = (aktion: string) => u.perAction.find((a) => a.action === aktion)?.count ?? 0;
+  let importBars = $derived(
+    u.importSources.map((i) => ({ label: QUELLE_LABEL[i.action] ?? i.action, count: i.count })),
+  );
+  // Tagesreihe zu Wochen bündeln — bei 90 Tagen sind Tagesbalken unlesbar.
+  let wochenBars = $derived.by(() => {
+    const map = new Map<string, number>();
+    for (const d of u.perDay) {
+      const dt = new Date(d.day + "T00:00:00Z");
+      const montag = new Date(dt);
+      montag.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7));
+      const key = montag.toISOString().slice(0, 10);
+      map.set(key, (map.get(key) ?? 0) + d.count);
+    }
+    return [...map.entries()].map(([tag, count]) => ({
+      label: new Date(tag + "T00:00:00Z").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
+      count,
+    }));
+  });
+  const nieLabel = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString("de-DE", { month: "short", year: "numeric" }) : "noch nie";
 
   const PALETTE = ["var(--red)", "var(--blue)", "var(--yellow)"];
   const colorAt = (i: number) => PALETTE[((i % 3) + 3) % 3];
@@ -57,6 +96,106 @@
 
 <h1 class="page-title">Statistik</h1>
 <p class="lead">Zahlen, Daten &amp; Fakten zur Sammlung — {s.total} Rezepte aus {s.regionCount} Regionen.</p>
+
+<div class="sectionhead">
+  <h2 class="sectitle">Nutzung</h2>
+  <nav class="zeitraum">
+    {#each [30, 90, 365] as t (t)}
+      <a href={`/statistik?tage=${t}`} class:aktiv={u.days === t}>{t === 365 ? "1 Jahr" : `${t} Tage`}</a>
+    {/each}
+  </nav>
+</div>
+
+{#if u.total === 0}
+  <section class="panel">
+    <p class="leer">
+      Noch keine Nutzungsdaten in diesem Zeitraum.
+      {#if u.firstEventAt}
+        Aufgezeichnet wird seit {new Date(u.firstEventAt).toLocaleDateString("de-DE")}.
+      {:else}
+        Die Aufzeichnung beginnt mit der nächsten Nutzung.
+      {/if}
+    </p>
+  </section>
+{:else}
+  <section class="kpis">
+    {@render kpi(String(zaehler("recipe_view")), "Aufrufe", "var(--blue)")}
+    {@render kpi(String(zaehler("cook_start")), "mal gekocht", "var(--red)")}
+    {@render kpi(String(zaehler("pdf_export")), "Karten gedruckt", "var(--yellow)")}
+    {@render kpi(String(zaehler("search")), "Suchen", "var(--blue)")}
+    {@render kpi(String(zaehler("import")), "Importe", "var(--red)")}
+    {@render kpi(String(zaehler("shopping_add")), "auf die Liste", "var(--yellow)")}
+    {@render kpi(String(zaehler("plan_meal")), "eingeplant", "var(--blue)")}
+    {@render kpi(String(u.total), "Aktionen gesamt", "var(--red)")}
+  </section>
+
+  <div class="two">
+    <section class="panel">
+      <h2><span class="mk" style="background:var(--red)"></span>Meistgekocht</h2>
+      {@render rezeptliste(u.topCooked, "mal")}
+    </section>
+    <section class="panel">
+      <h2><span class="mk" style="background:var(--blue)"></span>Meistaufgerufen</h2>
+      {@render rezeptliste(u.topViewed, "×")}
+    </section>
+  </div>
+
+  <div class="two">
+    <section class="panel">
+      <h2><span class="mk" style="background:var(--yellow)"></span>Suchen ohne Treffer</h2>
+      {#if u.emptySearches.length}
+        <p class="hint">Wonach gesucht wurde, ohne dass es ein Rezept gab — die Wunschliste fürs nächste Importieren.</p>
+        {@render suchliste(u.emptySearches)}
+      {:else}
+        <p class="leer">Jede Suche hatte Treffer.</p>
+      {/if}
+    </section>
+    <section class="panel">
+      <h2><span class="mk" style="background:var(--red)"></span>Häufigste Suchen</h2>
+      {#if u.topSearches.length}
+        {@render suchliste(u.topSearches)}
+      {:else}
+        <p class="leer">Noch keine Suchen aufgezeichnet.</p>
+      {/if}
+    </section>
+  </div>
+
+  <div class="two">
+    <section class="panel">
+      <h2><span class="mk" style="background:var(--blue)"></span>Karten gedruckt</h2>
+      {@render rezeptliste(u.topPrinted, "×")}
+    </section>
+    <section class="panel">
+      <h2><span class="mk" style="background:var(--yellow)"></span>Woher die Rezepte kamen</h2>
+      {#if importBars.length}
+        {@render bars(importBars)}
+      {:else}
+        <p class="leer">Kein Import in diesem Zeitraum.</p>
+      {/if}
+    </section>
+  </div>
+
+  {#if wochenBars.length > 1}
+    <section class="panel">
+      <h2><span class="mk" style="background:var(--red)"></span>Aktivität je Woche</h2>
+      {@render bars(wochenBars)}
+    </section>
+  {/if}
+
+  {#if u.neglected.length}
+    <section class="panel">
+      <h2><span class="mk" style="background:var(--blue)"></span>Lange nicht angefasst</h2>
+      <p class="hint">Rezepte, die im gewählten Zeitraum niemand geöffnet hat.</p>
+      <ul class="rliste">
+        {#each u.neglected as r (r.slug)}
+          <li><a href={`/recipe/${r.slug}`}>{r.title}</a><span class="rval">{nieLabel(r.lastAt)}</span></li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+{/if}
+
+<h2 class="sectitle">Sammlung</h2>
 
 <!-- KPIs -->
 <section class="kpis">
@@ -215,6 +354,26 @@
   </div>
 </section>
 
+{#snippet rezeptliste(items: { slug: string; title: string; count: number }[], einheit: string)}
+  {#if items.length}
+    <ul class="rliste">
+      {#each items as r (r.slug)}
+        <li><a href={`/recipe/${r.slug}`}>{r.title}</a><span class="rval">{r.count} {einheit}</span></li>
+      {/each}
+    </ul>
+  {:else}
+    <p class="leer">Nichts aufgezeichnet.</p>
+  {/if}
+{/snippet}
+
+{#snippet suchliste(items: { query: string; count: number; hits: number }[])}
+  <ul class="rliste">
+    {#each items as q (q.query)}
+      <li><span class="qtext">„{q.query}"</span><span class="rval">{q.count}× · {q.hits} Treffer</span></li>
+    {/each}
+  </ul>
+{/snippet}
+
 {#snippet kpi(value: string, label: string, color: string)}
   <div class="kpi" style="--kc:{color}">
     <span class="kpi-val">{value}</span>
@@ -249,6 +408,73 @@
 {/snippet}
 
 <style>
+  .sectionhead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .sectitle {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 1.8rem 0 0.9rem;
+  }
+  .sectionhead .sectitle {
+    margin-top: 0.4rem;
+  }
+  .zeitraum {
+    display: flex;
+    gap: 0.4rem;
+  }
+  .zeitraum a {
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 0.15rem 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--ink);
+    background: #fff;
+  }
+  .zeitraum a.aktiv {
+    background: var(--ink);
+    color: #fff;
+  }
+  .rliste {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .rliste li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.8rem;
+    border-bottom: 1px dotted var(--muted);
+    padding-bottom: 0.25rem;
+  }
+  .rliste a {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .qtext {
+    font-weight: 600;
+  }
+  .rval {
+    color: var(--muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+  .hint,
+  .leer {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin: 0 0 0.6rem;
+  }
   .page-title {
     margin: 0.2rem 0 0.2rem;
     text-transform: uppercase;

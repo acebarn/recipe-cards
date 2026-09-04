@@ -112,6 +112,25 @@
         tokens.every((t) => r.search.includes(t)),
     ),
   );
+  // Suche fürs Nutzungslog melden: erst wenn 1,2 s nicht mehr getippt wurde, damit
+  // aus "s","sc","sch" kein Rauschen wird. Zählt auch die Treffer — Suchen ohne
+  // Treffer sind die Wunschliste fürs nächste Importieren.
+  let sucheTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    const q = query.trim();
+    const hits = filtered.length;
+    if (!browser || q.length < 3) return;
+    clearTimeout(sucheTimer);
+    sucheTimer = setTimeout(() => {
+      void fetch("/api/events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "search", q, hits }),
+      }).catch(() => {}); // Messen darf die Suche nie stören
+    }, 1200);
+    return () => clearTimeout(sucheTimer);
+  });
+
   const byTitle = (a: R, b: R) => a.title.localeCompare(b.title, "de");
   let newest = $derived([...scoped].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6));
   // Gruppen immer aus dem gefilterten Set — so wird in-place gefiltert.

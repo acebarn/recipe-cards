@@ -18,6 +18,7 @@ import { normalizeName, parseIngredient } from "$core/ingredient-parse.ts";
 import { hasCalendarAccess, MEALS, type Meal } from "$core/services/calendar/settings.ts";
 import { planMeal, type Recurrence } from "$core/services/calendar/plan.ts";
 import { canManageRecipe, getUserById, isAdmin } from "$core/services/users.ts";
+import { recordEvent } from "$core/services/events.ts";
 import { error, fail } from "@sveltejs/kit";
 import { tracedRedirect } from "$lib/traced-redirect.ts";
 import { existsSync } from "node:fs";
@@ -45,6 +46,7 @@ function formatTime(raw?: string): string | null {
 export const load: PageServerLoad = ({ params, locals }) => {
   const r = getRecipeBySlug(params.slug);
   if (!r) throw error(404, "Rezept nicht gefunden");
+  recordEvent("recipe_view", { userId: locals.user?.id, slug: r.slug });
   const m = r.meta;
   // Pro-Rezept-Farbthema – gleiche Logik wie die Karte (theme_color → Bild → Titel).
   const imgPath = r.imageFilename ? join(getProjectRoot(), "assets", r.imageFilename) : undefined;
@@ -195,6 +197,11 @@ export const actions: Actions = {
         scale,
         { excludeNormalized },
       );
+      recordEvent("shopping_add", {
+        userId: locals.user.id,
+        slug: r.slug,
+        detail: { scale, added, merged },
+      });
       const parts = [`${added} hinzugefügt`, `${merged} zusammengeführt`];
       if (inStock) parts.push(`${inStock} vorrätig übersprungen`);
       if (skipped) parts.push(`${skipped} Standardzutaten übersprungen`);
@@ -230,6 +237,11 @@ export const actions: Actions = {
         meal,
         recurrence,
         until,
+      });
+      recordEvent("plan_meal", {
+        userId: locals.user.id,
+        slug: r.slug,
+        detail: { meal, recurring: res.recurring ? 1 : 0 },
       });
       const when = new Date(res.date).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
       return { planOk: `${res.meal} am ${when} eingeplant${res.recurring ? " (wiederkehrend)" : ""}.` };

@@ -283,4 +283,17 @@ CREATE INDEX idx_import_jobs_due ON import_jobs(status, next_try_at);
 CREATE INDEX idx_import_jobs_user ON import_jobs(user_id, status);
 `,
   },
+  {
+    id: "009_events",
+    sql: `
+-- Nutzungs-Events. Die Tabelle audit_log existiert seit 001, blieb aber leer;
+-- sie wird jetzt für die Nutzungsstatistik befüllt. 'detail' hält je nach
+-- Aktion ein kurzes JSON (z.B. {"scale":2} oder {"q":"schoko","hits":0}).
+-- Bewusst NICHT gespeichert: IP, User-Agent, Referrer.
+ALTER TABLE audit_log ADD COLUMN detail TEXT;
+CREATE INDEX idx_audit_at ON audit_log(at);
+CREATE INDEX idx_audit_action_at ON audit_log(action, at);
+CREATE INDEX idx_audit_recipe ON audit_log(recipe_slug, action);
+`,
+  },
 ];

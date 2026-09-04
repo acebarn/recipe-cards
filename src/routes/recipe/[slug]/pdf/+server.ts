@@ -1,6 +1,7 @@
 import { getProjectRoot } from "$core/paths.ts";
 import { renderCard } from "$core/render.ts";
 import { getRecipeBySlug, toRecipe } from "$core/services/library.ts";
+import { recordEvent } from "$core/services/events.ts";
 import { error } from "@sveltejs/kit";
 import { readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,7 +18,7 @@ function parseScale(raw: string | null): number {
 // den Event-Loop für die Dauer des Compiles. Da der Aufruf atomar bzgl. des
 // Loops ist, können sich gleichzeitige Renders desselben Slugs nicht ins
 // Gehege kommen; eine separate Render-Queue ist daher nicht nötig.
-export const GET: RequestHandler = ({ params, url }) => {
+export const GET: RequestHandler = ({ params, url, locals }) => {
   const stored = getRecipeBySlug(params.slug);
   if (!stored) throw error(404, "Rezept nicht gefunden");
 
@@ -38,6 +39,9 @@ export const GET: RequestHandler = ({ params, url }) => {
 
   const pdf = readFileSync(result.pdfPath);
   rmSync(result.pdfPath, { force: true });
+  // Erst nach erfolgreichem Render verbuchen – ein gescheiterter Typst-Lauf ist
+  // keine gedruckte Karte.
+  recordEvent("pdf_export", { userId: locals.user?.id, slug: stored.slug, detail: { scale } });
 
   const suffix = scale !== 1 ? `-x${String(scale).replace(".", ",")}` : "";
   return new Response(pdf, {

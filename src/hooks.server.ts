@@ -1,5 +1,6 @@
 import { startSyncWorker } from "$core/services/drive-sync.ts";
 import { startImportWorker } from "$core/services/import-queue.ts";
+import { startEventRetention } from "$core/services/events.ts";
 import { getUserByEmail, isAdmin } from "$core/services/users.ts";
 import { type Handle } from "@sveltejs/kit";
 import { tracedRedirect } from "$lib/traced-redirect.ts";
@@ -39,6 +40,8 @@ process.on("unhandledRejection", (reason) => {
 startSyncWorker();
 // Import-Retry-Worker: nimmt bei Überlastung eingereihte Importe wieder auf.
 startImportWorker();
+// Nutzungs-Events nach der Aufbewahrungsfrist wegräumen (täglich).
+startEventRetention();
 
 // Routen, die ohne Freigabe erreichbar sind.
 const PUBLIC_PATHS = new Set(["/login", "/pending"]);

@@ -1,14 +1,17 @@
 import { getProjectRoot } from "$core/paths.ts";
 import { themeFor } from "$core/theme.ts";
 import { getRecipeBySlug } from "$core/services/library.ts";
+import { recordEvent } from "$core/services/events.ts";
 import { error } from "@sveltejs/kit";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = ({ params, url }) => {
+export const load: PageServerLoad = ({ params, url, locals }) => {
   const r = getRecipeBySlug(params.slug);
   if (!r) throw error(404, "Rezept nicht gefunden");
+  // Kochmodus ist das ehrlichste Nutzungssignal: hier wird wirklich gekocht.
+  recordEvent("cook_start", { userId: locals.user?.id, slug: r.slug });
   const s = Number((url.searchParams.get("scale") ?? "1").replace(",", "."));
   const imgPath = r.imageFilename ? join(getProjectRoot(), "assets", r.imageFilename) : undefined;
   const theme = themeFor({
