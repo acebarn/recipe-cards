@@ -31,6 +31,37 @@ templates/card.typ Typst-Layout der Rezeptkarte; fonts/ = gebündelte Jost
 
 `$core` ist der Import-Alias für `core/` (in `svelte.config.js`).
 
+### Speichermodell
+
+Drei Orte, klare Rollen:
+
+| Ort | Inhalt |
+|-----|--------|
+| SQLite `library.db` | Rezept doppelt: in Spalten (`ingredients_json`, `steps_json`, …) für UI/Suche **und** als `markdown_body` (Round-Trip-Original) |
+| `web-data/assets/` | die Aquarell-Bilder als Dateien — Typst greift beim Rendern darauf zu |
+| Drive `Rezepte/{md,pdf,assets}/` | einseitiger Backup-Spiegel |
+
+**In die DB** wird synchron im Request geschrieben (better-sqlite3 ist synchron):
+`insertRecipe` beim Import, `updateRecipe` beim Bearbeiten, `softDeleteRecipe`
+beim Löschen (setzt nur `deleted_at`). Bild und Schritt→Zutat-Zuordnung tröpfeln
+Sekunden später asynchron nach.
+
+**Nach Drive** nie direkt, immer über die Tabelle `sync_queue`: `enqueueUpsert`
+beim Import, Bearbeiten, Bild-Neugenerierung und nach der Bildablage
+(`image-store.ts`), `enqueueDelete` beim Löschen. Der Worker (`drive-sync.ts`)
+läuft nur mit `RECIPE_SYNC=1`, wird 200 ms nach jedem Schreibzugriff angestoßen
+und zusätzlich alle 30 s; er liest `markdown_body` frisch aus der DB, rendert das
+PDF neu und lädt md + pdf + Bild per rclone hoch. Fünf Fehlversuche → `error`.
+Löschen ist Drive-gesteuert: die soft-gelöschte Zeile bleibt liegen, bis rclone
+alle drei Dateien weg hat — erst dann `purgeRecipe`.
+
+**PDFs werden nirgends dauerhaft gespeichert:** die Web-Ansicht rendert bei jedem
+Abruf frisch nach `tmp` und löscht sofort; der Sync-Worker rendert seine eigene
+Kopie für Drive.
+
+**Dominierend ist SQLite.** Drive wird im Betrieb *nie* gelesen — der einzige
+Rückweg ist `npm run seed` als manuelle Wiederherstellung.
+
 ## Lokal arbeiten
 
 ```bash
@@ -100,9 +131,15 @@ Alt-Löschungen aus Juni und drei verwaiste Bild-Zeilen wurden am 04.09. bereini
 (DB-Backup: `/opt/recipe-cards/web-data/library-backup-2026-09-04.db`, die
 Bilddateien liegen unter `web-data/assets-verwaist-2026-09-04/`).
 
-Dabei aufgefallen: **`purgeRecipe()` räumt die `images`-Tabelle nicht mit ab** —
-beim endgültigen Löschen eines Rezepts bleiben Bild-Zeile und Asset-Datei liegen.
-Noch nicht behoben.
+Der Drive-Spiegel ist seit 04.09. **vollständig: 64 md / 64 pdf / 64 Bilder.**
+Vorher fehlten 21 Bilder (und die zugehörigen PDFs waren unbebildert), weil der
+Upsert beim Import lief, bevor die Bildgenerierung fertig war — behoben in
+`image-store.ts` (Commit `87cb45f`), die Altfälle wurden über die normale
+sync_queue nachgezogen.
+
+Noch offen: **`purgeRecipe()` räumt die `images`-Tabelle nicht mit ab** — beim
+endgültigen Löschen eines Rezepts bleiben Bild-Zeile und Asset-Datei liegen (so
+sind die drei Waisen entstanden).
 
 Frisch bereinigt (Commit `c0bec89`): **Telegram-Bot, datei-basierte CLI und
 Alt-Artefakte sind entfernt** (`scripts/bot.ts`, `cli.ts`, `add.ts`, `refresh.ts`,
