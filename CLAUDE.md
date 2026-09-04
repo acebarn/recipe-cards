@@ -1,7 +1,7 @@
 # SCHMACKOFATZ — Arbeitskontext
 
 Selbst-gehostete Rezept-Web-App im Bauhaus-Stil für einen Familienhaushalt.
-Live unter <https://recipes.alessiobisgen.de> (4 Nutzer, ~66 Rezepte). Der README
+Live unter <https://recipes.alessiobisgen.de> (4 Nutzer, 64 Rezepte). Der README
 beschreibt die Funktionen; diese Datei hält fest, was man beim Arbeiten am Code
 wissen muss und nicht aus ihm ablesen kann.
 
