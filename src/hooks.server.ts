@@ -1,7 +1,8 @@
 import { startSyncWorker } from "$core/services/drive-sync.ts";
 import { startImportWorker } from "$core/services/import-queue.ts";
 import { getUserByEmail, isAdmin } from "$core/services/users.ts";
-import { redirect, type Handle } from "@sveltejs/kit";
+import { type Handle } from "@sveltejs/kit";
+import { tracedRedirect } from "$lib/traced-redirect.ts";
 import { sequence } from "@sveltejs/kit/hooks";
 import { authHandle } from "./auth.ts";
 
@@ -17,7 +18,9 @@ function describeRejection(reason: unknown): string {
   if (reason && typeof reason === "object") {
     const r = reason as { status?: number; location?: string; stack?: string; message?: string };
     if (typeof r.status === "number" && typeof r.location === "string") {
-      return `Redirect(${r.status} → ${r.location})`;
+      const ursprung = (reason as { __ursprung?: string }).__ursprung;
+      return `Redirect(${r.status} → ${r.location})` +
+        (ursprung ? `\n  erzeugt hier:\n${ursprung}` : "\n  ohne Ursprungsmarkierung → aus SvelteKit selbst, nicht aus unserem Code");
     }
     if (r.stack) return r.stack;
     if (r.message) return `${reason.constructor?.name ?? "Error"}: ${r.message}`;
@@ -59,13 +62,13 @@ const authorization: Handle = async ({ event, resolve }) => {
   const path = event.url.pathname;
 
   if (!user) {
-    if (!PUBLIC_PATHS.has(path)) throw redirect(303, "/login");
+    if (!PUBLIC_PATHS.has(path)) throw tracedRedirect(303, "/login");
   } else if (user.status !== "approved") {
-    if (path !== "/pending") throw redirect(303, "/pending");
+    if (path !== "/pending") throw tracedRedirect(303, "/pending");
   } else {
     // Freigegebene Nutzer: Login/Pending überspringen, /admin nur für Admins.
-    if (path === "/login" || path === "/pending") throw redirect(303, "/");
-    if (path.startsWith("/admin") && !isAdmin(user)) throw redirect(303, "/");
+    if (path === "/login" || path === "/pending") throw tracedRedirect(303, "/");
+    if (path.startsWith("/admin") && !isAdmin(user)) throw tracedRedirect(303, "/");
   }
 
   return resolve(event);

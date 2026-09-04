@@ -18,7 +18,8 @@ import { normalizeName, parseIngredient } from "$core/ingredient-parse.ts";
 import { hasCalendarAccess, MEALS, type Meal } from "$core/services/calendar/settings.ts";
 import { planMeal, type Recurrence } from "$core/services/calendar/plan.ts";
 import { canManageRecipe, getUserById, isAdmin } from "$core/services/users.ts";
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
+import { tracedRedirect } from "$lib/traced-redirect.ts";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Actions, PageServerLoad } from "./$types";
@@ -131,7 +132,7 @@ export const actions: Actions = {
     }
     const ref = softDeleteRecipe(params.slug);
     if (ref) enqueueDelete(ref);
-    throw redirect(303, "/");
+    throw tracedRedirect(303, "/");
   },
 
   // Admin: Bild mit (optional angepasstem) image_subject neu generieren.

@@ -8,7 +8,8 @@ import {
 import { queueStepMapping } from "$core/services/step-map.ts";
 import { enqueueUpsert } from "$core/services/sync-queue.ts";
 import { canManageRecipe } from "$core/services/users.ts";
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
+import { tracedRedirect } from "$lib/traced-redirect.ts";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ params, locals }) => {
@@ -44,6 +45,6 @@ export const actions: Actions = {
     enqueueUpsert(params.slug);
     // updateRecipe hat das alte Mapping geleert → neu erzeugen (bis dahin Heuristik).
     queueStepMapping(recipe, params.slug, env.GEMINI_API_KEY);
-    throw redirect(303, `/recipe/${params.slug}`);
+    throw tracedRedirect(303, `/recipe/${params.slug}`);
   },
 };

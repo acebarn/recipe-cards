@@ -5,7 +5,8 @@ import {
   isImportRetryEnabled,
 } from "$core/services/import-queue.ts";
 import { fetchReelCaption, isInstagramUrl } from "$core/services/reel.ts";
-import { fail, redirect } from "@sveltejs/kit";
+import { fail } from "@sveltejs/kit";
+import { tracedRedirect } from "$lib/traced-redirect.ts";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,7 +31,7 @@ async function handleImport(tab: Tab, input: Input, locals: App.Locals) {
     }
     return fail(503, { tab, error: err.message });
   }
-  throw redirect(303, `/recipe/${slug}`);
+  throw tracedRedirect(303, `/recipe/${slug}`);
 }
 
 export const actions: Actions = {
