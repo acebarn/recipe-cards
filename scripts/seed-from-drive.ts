@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Seed: bestehende Rezepte (lokal aus recipes/ oder per rclone aus Google Drive)
+// Seed: bestehende Rezepte (per rclone aus Google Drive, oder --from-local <ordner>)
 // idempotent in die SQLite-Bibliothek laden. Schreibt NICHT zurück nach Drive
 // (die Rezepte liegen dort bereits) – kein Sync-Enqueue.
 import { spawnSync } from "node:child_process";

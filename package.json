@@ -1,18 +1,9 @@
 {
   "name": "recipe-cards",
   "version": "0.1.0",
-  "description": "Scannt YAML-Rezepte und rendert druckfertige A5-Rezeptkarten via Typst.",
+  "description": "SCHMACKOFATZ – selbst-gehostete Rezept-Web-App (SvelteKit) mit SQLite-Bibliothek und Typst-Rezeptkarten.",
   "type": "module",
-  "bin": {
-    "recipe-cards": "scripts/cli.ts"
-  },
   "scripts": {
-    "start": "node scripts/cli.ts",
-    "images": "node scripts/gen-images.ts",
-    "import": "node scripts/import-photo.ts",
-    "add": "node scripts/add.ts",
-    "refresh": "node scripts/refresh.ts",
-    "bot": "node scripts/bot.ts",
     "seed": "node scripts/seed-from-drive.ts",
     "dev": "vite dev",
     "build": "vite build",

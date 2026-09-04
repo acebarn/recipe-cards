@@ -1,8 +1,8 @@
 // Rezept-Import-Service: aus Foto(s), Webseite oder Text einen Rezept-Entwurf
 // (Markdown mit YAML-Frontmatter) per Google Gemini erzeugen.
 //
-// Reine, wiederverwendbare Logik – genutzt sowohl von der CLI (scripts/import-photo.ts)
-// als auch vom Web-/Bot-Add-Flow. Datei-Ablage/Argument-Parsing liegt bei den Aufrufern.
+// Reine, wiederverwendbare Logik – genutzt von der Web-App (/add) und der Import-Queue.
+// Datei-Ablage/Argument-Parsing liegt bei den Aufrufern.
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { flattenIngredients } from "../ingredients.ts";

@@ -1,10 +1,7 @@
 node_modules/
-out/
-.cli-build/
 .env
 .DS_Store
 .claude/settings.local.json
-.bot-tmp/
 data/
 *.db
 *.db-wal

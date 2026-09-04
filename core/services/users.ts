@@ -31,6 +31,7 @@ export interface User {
   picture?: string;
   role: UserRole;
   status: UserStatus;
+  /** Alt-Bestand aus der Telegram-Bot-Zeit: hält die Rezepte des Bot-Kontos zuordenbar. */
   telegramId?: string;
   invitedBy?: number;
   createdAt: string;
@@ -116,26 +117,6 @@ export function getUserByGoogleSub(sub: string): User | null {
     | UserRow
     | undefined;
   return row ? rowToUser(row) : null;
-}
-
-export function getUserByTelegramId(telegramId: string): User | null {
-  const row = getDb().prepare("SELECT * FROM users WHERE telegram_id = ?").get(telegramId) as
-    | UserRow
-    | undefined;
-  return row ? rowToUser(row) : null;
-}
-
-/** Stellt einen Nutzer für eine Telegram-ID sicher (für created_by bei Bot-Importen). */
-export function ensureTelegramUser(telegramId: string, name?: string): User {
-  const existing = getUserByTelegramId(telegramId);
-  if (existing) return existing;
-  return createUser({
-    email: `telegram-${telegramId}@bot.local`,
-    name: name ?? `Telegram ${telegramId}`,
-    telegramId,
-    role: "member",
-    status: "approved",
-  });
 }
 
 /** Stellt den Owner sicher (anlegen, falls nicht vorhanden) – für Seed/Bootstrap. */

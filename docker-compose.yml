@@ -1,10 +1,8 @@
-# Web-App + Telegram-Bot auf dem VPS. Aufruf im Repo-Verzeichnis (/opt/recipe-cards/app):
+# Web-App auf dem VPS. Aufruf im Repo-Verzeichnis (/opt/recipe-cards/app):
 #   DOCKER_BUILDKIT=0 docker build -t recipe-web:latest .   # buildx zu alt für compose-build
 #   docker compose up -d
 #
-# Beide Dienste teilen dasselbe Image + dieselbe SQLite-Bibliothek (/data/library.db)
-# und denselben Assets-Ordner. Der Drive-Sync-Worker läuft nur im Web-Container
-# (RECIPE_SYNC=1 in web.env); der Bot reiht nur Upserts/Deletes ein.
+# Der Drive-Sync-Worker läuft im Web-Container (RECIPE_SYNC=1 in web.env).
 services:
   web:
     build: .
@@ -22,20 +20,3 @@ services:
       - /opt/recipe-cards/data/rclone:/root/.config/rclone # rclone-Remote (Drive-Sync-Worker)
     ports:
       - "127.0.0.1:3000:3000" # nur nginx spricht mit der App
-
-  bot:
-    image: recipe-web:latest # dasselbe Image, nur anderer Befehl
-    container_name: recipe-bot
-    restart: unless-stopped
-    command: ["node", "scripts/bot.ts"]
-    # bot.env: TELEGRAM_BOT_TOKEN, ALLOWED_TELEGRAM_USERS, GEMINI_API_KEY, PIXAZO_API_KEY
-    # (KEIN RECIPE_SYNC → kein zweiter Sync-Worker; kein rclone-Mount nötig)
-    env_file:
-      - /opt/recipe-cards/bot.env
-    environment:
-      RECIPE_DB_PATH: /data/library.db
-      RECIPE_PROJECT_ROOT: /app
-      RECIPE_BOT_MANAGED: "1"
-    volumes:
-      - /opt/recipe-cards/web-data:/data # dieselbe library.db wie der Web-Container
-      - /opt/recipe-cards/web-data/assets:/app/assets # dieselben Aquarell-Bilder

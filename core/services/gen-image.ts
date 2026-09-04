@@ -1,6 +1,6 @@
 // Bild-Service: KI-Aquarell-Symbol pro Rezept via Pixazo FLUX.1 [schnell].
-// Reine, wiederverwendbare Logik – genutzt von der CLI (scripts/gen-images.ts)
-// und vom Web-/Bot-Add-Flow. Caching/Datei-Ablage liegt bei den Aufrufern.
+// Reine, wiederverwendbare Logik – genutzt von der Web-App (core/services/image-store.ts).
+// Caching/Datei-Ablage liegt bei den Aufrufern.
 import type { Recipe } from "../model.ts";
 
 // Pixazo FLUX.1 [schnell] — günstig (~$0,0012/Bild), synchroner Flow.

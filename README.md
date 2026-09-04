@@ -6,8 +6,8 @@ Link, Text), in einer durchsuchbaren Bibliothek verwalten und als druckfertige
 rendern. Dazu Einkaufsliste, Wochenplan, Vorratskammer und ein Statistik-Dashboard.
 
 Die App läuft als **SvelteKit-Server** (Node-Adapter) mit **SQLite**-Bibliothek hinter
-Google-Login. Ein **Telegram-Bot** und eine **CLI** teilen sich denselben Code; eine
-optionale **Google-Drive-Sicherung** (rclone) hält Markdown + PDFs gespiegelt.
+Google-Login. Eine optionale **Google-Drive-Sicherung** (rclone) hält Markdown + PDFs
+gespiegelt.
 
 ---
 
@@ -51,7 +51,7 @@ optionale **Google-Drive-Sicherung** (rclone) hält Markdown + PDFs gespiegelt.
 - **Typst** für das PDF-Rendering der Karten, **Pixazo FLUX** für die Aquarell-Bilder,
   **Google Gemini** für den Import
 - **bring-shopping** (Bring!), Google-Calendar-REST, **rclone** (Drive-Sicherung)
-- Node ≥ 23.6 – TypeScript läuft ohne Build-Schritt direkt (auch in der CLI)
+- Node ≥ 23.6 – TypeScript läuft ohne Build-Schritt direkt (auch in den Wartungsskripten)
 
 ---
 
@@ -89,7 +89,6 @@ Weitere Befehle: `npm run build` / `npm run preview` (Produktion), `npm run chec
 | `RECIPE_PROJECT_ROOT` | Root für Typst/Assets (im Container `/app`) |
 | `RECIPE_SYNC` | `1` aktiviert den Drive-Sync-Worker (sonst aus) |
 | `DRIVE_REMOTE` / `DRIVE_FOLDER` | rclone-Remote bzw. Drive-Ordner (Standard `drive` / `Rezepte`) |
-| `TELEGRAM_BOT_TOKEN` / `ALLOWED_TELEGRAM_USERS` | Telegram-Bot |
 | `RECIPE_DEV_USER` | nur lokal: OAuth-Bypass |
 
 Für die Kalenderfunktion müssen am OAuth-Client zusätzlich die Scopes
@@ -139,48 +138,33 @@ last_modified: 2025-10-20
 
 ---
 
-## CLI & Hilfsskripte
+## Wartungsskripte
 
-Dieselbe Logik ist als CLI nutzbar (rendert Karten ohne laufenden Server):
+Einmal-/Wartungsläufe gegen die SQLite-Bibliothek (nicht im Normalbetrieb nötig):
 
 ```bash
-npm start                                  # alle Rezepte aus ./recipes → ./out
-npm start -- --category brot --scale 2     # filtern / Mengen skalieren
-npm run import -- foto.heic                 # Foto/Link/Text → Rezept-Entwurf (Gemini)
-npm run images                             # fehlende Aquarell-Bilder erzeugen (Pixazo)
-npm run add -- "https://…/rezept"          # Import → Bild → PDF in einem Lauf
-npm run refresh                            # bestehende Sammlung: Bilder + PDFs ergänzen
-npm run bot                                # Telegram-Bot lokal starten
 npm run seed                               # Bibliothek aus Google Drive in die DB ziehen
+node scripts/gen-images-db.ts              # fehlende Aquarell-Bilder nachgenerieren (Pixazo)
+node scripts/map-steps-db.ts               # Schritt→Zutat-Zuordnung neu erzeugen (Gemini)
+node scripts/reprocess-ingredients.ts      # Zutaten neu parsen
+node scripts/backfill-categories.ts        # Kategorien nachziehen
+node scripts/backfill-region-times.ts      # Region/Zeiten nachziehen
+node scripts/gen-icons.ts                  # PWA-Icons aus dem Logo rendern
 ```
 
-Die Karte besteht aus zwei A5-Seiten (Vorderseite: Metadaten + Zutaten + großes Aquarell;
-Rückseite: Schritte + Hinweise). Die Grundfarbe ergibt sich aus `theme_color`, sonst aus
-dem Bild, sonst deterministisch aus dem Titel. Voraussetzung fürs Rendern:
-**Typst ≥ 0.14** im `PATH` (die Schrift *Jost* ist gebündelt).
-
----
-
-## Telegram-Bot
-
-Der Bot nimmt **Foto/Link/Text** im Chat entgegen, fährt die Pipeline und schickt die
-fertige **PDF** zurück; danach kann das Rezept in die Bibliothek übernommen werden.
-Er teilt sich Image, SQLite-DB und Assets mit der Web-App (siehe Deployment). Lokal:
-
-```bash
-# .env: TELEGRAM_BOT_TOKEN (@BotFather), optional ALLOWED_TELEGRAM_USERS=<id1>,<id2>
-npm run bot
-```
+Die Rezeptkarte besteht aus zwei A5-Seiten (Vorderseite: Metadaten + Zutaten + großes
+Aquarell; Rückseite: Schritte + Hinweise). Die Grundfarbe ergibt sich aus `theme_color`,
+sonst aus dem Bild, sonst deterministisch aus dem Titel. Voraussetzung fürs Rendern:
+**Typst ≥ 0.14** im `PATH` (die Schrift *Jost* ist gebündelt; im Container ist beides drin).
 
 ---
 
 ## Deployment (VPS, Docker)
 
-Web-App und Bot laufen als zwei Container aus **demselben Image** hinter **nginx**
-(Reverse-Proxy, siehe [`deploy/nginx-recipes.conf`](deploy/nginx-recipes.conf)). Sie
-teilen sich `library.db` und den Assets-Ordner; der Drive-Sync-Worker läuft nur im
-Web-Container (`RECIPE_SYNC=1`). Konfiguration liegt **außerhalb** des Repos in
-`/opt/recipe-cards/web.env` bzw. `bot.env` (Secrets, mode 600).
+Die Web-App läuft als Container hinter **nginx** (Reverse-Proxy, siehe
+[`deploy/nginx-recipes.conf`](deploy/nginx-recipes.conf)). Der Drive-Sync-Worker läuft
+mit `RECIPE_SYNC=1`. Konfiguration liegt **außerhalb** des Repos in
+`/opt/recipe-cards/web.env` (Secrets, mode 600).
 
 Im Repo-Verzeichnis auf dem Server (`/opt/recipe-cards/app`):
 
@@ -217,10 +201,8 @@ core/services/     DB + Migrationen, Bibliothek, Import, Bilder, Bring, Kalender
                    Inventar, Drive-Sync, Nutzer
 templates/         card.typ – Typst-Layout der Rezeptkarte
 fonts/             gebündelte Schrift (Jost, OFL)
-scripts/           CLI (cli.ts), import, gen-images, add, refresh, bot, seed
+scripts/           Wartungsskripte gegen die DB (seed, backfills, Bilder, Icons)
 assets/            generierte Aquarell-Symbole (Cache)
-recipes/           Rezept-Markdown (CLI-Eingabe / Seed-Quelle)
-recipe-bot/        Legacy Home-Assistant-Add-on (durch VPS-Docker abgelöst)
 deploy/            nginx-Konfiguration
 Dockerfile, docker-compose.yml
 ```
