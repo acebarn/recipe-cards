@@ -74,6 +74,11 @@ Suche filtert clientseitig über den Volldatensatz — sie meldet deshalb als
 einzige entprellt an `POST /api/events`, der ausschließlich `search` von
 angemeldeten Nutzern annimmt.
 
+Alle Ranglisten sind nach **verschiedenen Personen** gewichtet
+(`COUNT(DISTINCT user_id)`, danach erst die Anzahl) und zeigen beides an — bei
+drei Haushaltsmitgliedern bestimmt sonst eine vielnutzende Person das Bild. Eine
+Aufschlüsselung *pro Person* gibt es bewusst nicht.
+
 **Regeln, die nicht aufgeweicht werden sollten:** keine IP, kein User-Agent,
 kein Referrer; Suchbegriffe normalisiert und gekappt; Aufbewahrung 12 Monate
 (täglicher Aufräumlauf via `startEventRetention()`); `recordEvent()` schluckt
