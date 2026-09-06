@@ -134,6 +134,39 @@ Davor: Cloudflare (Full-strict) → nginx → Container `recipe-web` auf
 `127.0.0.1:3000`. Reine Env-Änderungen brauchen keinen Rebuild, nur
 `docker compose up -d web`.
 
+## Benachrichtigungen & Feedback
+
+Freigabe-Anfragen (Erstanmeldung) und Rückmeldungen aus `/feedback` gehen per
+**Telegram** raus — nicht per Mail. Der Grund steckt im DNS: `alessiobisgen.de`
+trägt `v=spf1 -all`, DMARC `p=reject` mit strikter Ausrichtung und ein
+Wildcard-DKIM `*._domainkey = "v=DKIM1; p="` (leerer Key). Die Domain ist
+ausdrücklich als „versendet keine Mail" konfiguriert; jeder Mailweg hätte
+DNS-Änderungen an drei Records erfordert.
+
+Bot: `@delicious_recipe_card_bot` (derselbe Token wie beim abgeschafften
+Rezept-Bot, aus `bot.env` nach `web.env` übernommen). **Kein eigener Prozess:**
+Telegram pusht per Webhook auf `POST /api/telegram`, abgesichert über den
+`X-Telegram-Bot-Api-Secret-Token`-Header. Das ist die einzige Route, die der
+Auth-Hook durchlässt — Telegram kann sich nicht anmelden.
+
+Empfänger tragen sich selbst ein, weil ein Bot nur Leute anschreiben darf, die
+ihn gestartet haben: `/admin/benachrichtigungen` erzeugt einen Einmal-Code,
+daraus wird ein `t.me/<bot>?start=<code>`-Deeplink, und der Webhook verknüpft
+Code → Chat. Codes verfallen nach 24 h.
+
+Webhook nach einem Domainwechsel neu setzen:
+
+```bash
+ssh server 'set -a; . /opt/recipe-cards/web.env; set +a
+curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -H "content-type: application/json" \
+  -d "{\"url\":\"$ORIGIN/api/telegram\",\"secret_token\":\"$TELEGRAM_WEBHOOK_SECRET\",\"allowed_updates\":[\"message\"]}"'
+```
+
+Feedback wird **immer erst in der DB gespeichert** und dann gemeldet — fällt
+Telegram aus, geht nichts verloren, und die Meldung an den Nutzer sagt ehrlich,
+was passiert ist (zugestellt / niemand eingetragen / Zustellung fehlgeschlagen).
+
 ## Konventionen
 
 - **Migrationen sind append-only.** Neue mit nächster id (`010_…`) ans Ende von
