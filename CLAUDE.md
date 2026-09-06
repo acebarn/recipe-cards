@@ -167,6 +167,31 @@ Feedback wird **immer erst in der DB gespeichert** und dann gemeldet — fällt
 Telegram aus, geht nichts verloren, und die Meldung an den Nutzer sagt ehrlich,
 was passiert ist (zugestellt / niemand eingetragen / Zustellung fehlgeschlagen).
 
+## Wartende Aktionen sichtbar machen
+
+Jede Aktion, die auf etwas Externes wartet, zeigt eine Ladeanzeige — sonst wirkt
+die App eingefroren (siehe den Blockade-Befund unten). Zwei Bausteine:
+
+- `src/lib/Spinner.svelte` — rotierender Bogen in `currentColor`, sitzt in
+  Knöpfen wie in Textzeilen, respektiert `prefers-reduced-motion`.
+- Ein globaler Ladebalken in `+layout.svelte` (über `navigating` aus
+  `$app/state`, erst nach 150 ms) für **Seitenwechsel**, die serverseitig auf
+  externe Daten warten: Einkaufsliste und Inventar holen von Bring, Kalender von
+  Google.
+
+Muster für Formulare: `let läuft = $state(false)` plus `use:enhance`-Handler, der
+vor `update()` setzt und danach zurücknimmt. Bei Seiten mit vielen kleinen
+Formularen (Einkaufsliste, Wochenplan) stattdessen **ein Zähler** und eine
+Sammelanzeige — nicht ein Zustand je Formular.
+
+Sonderfall PDF-Link: Das ist eine Navigation in einen neuen Tab, dort greift kein
+`enhance`. Der Zustand wird beim Klick gesetzt und über das `focus`-Ereignis des
+Fensters wieder aufgelöst (plus 30-s-Notbremse).
+
+Beim Testen solcher Anzeigen: Der Import prüft URLs gegen interne Adressen
+(SSRF-Schutz), ein `localhost`-Ziel wird sofort abgelehnt. Für Browser-Tests
+deshalb `window.fetch` künstlich verzögern, statt einen langsamen Server zu bauen.
+
 ## Konventionen
 
 - **Migrationen sind append-only.** Neue mit nächster id (`010_…`) ans Ende von
@@ -223,9 +248,6 @@ ist vom VPS entfernt.
   **Beim nächsten Vorfall sagt das Log die Antwort** — seit dem Deploy am 04.09.
   ist keiner mehr aufgetreten. Nicht mit der Blockade oben verwechseln: Das hier
   ist ein Prozessende, das war ein Hänger.
-- **Lange Aktion ohne Rückmeldung:** „Bild neu generieren" wartet auf Pixazo
-  (Zehner-Sekunden). Seit dem Fix blockiert das niemanden sonst mehr, aber die
-  Seite des Admins wirkt in der Zeit tot — eine Fortschrittsanzeige fehlt.
 - **Gemini Free-Tier-Tagescap:** Importe scheitern bei Erschöpfung (der Auto-Retry
   aus `import-queue.ts` fängt es ab, löst es aber nicht). Billing am Google-Key
   aktivieren.
