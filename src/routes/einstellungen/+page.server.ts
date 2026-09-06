@@ -4,6 +4,7 @@ import { getHousehold, getHouseholdId, listMembers } from "$core/services/invent
 import { isInventoryEnabled, setInventoryEnabled } from "$core/services/inventory/settings.ts";
 import { isImportRetryEnabled, setImportRetryEnabled } from "$core/services/import-queue.ts";
 import { isAdmin } from "$core/services/users.ts";
+import { listTargets } from "$core/services/notify/targets.ts";
 import { error } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -18,6 +19,7 @@ export const load: PageServerLoad = ({ locals }) => {
     importRetryEnabled: isImportRetryEnabled(user.id),
     householdName: getHousehold(user.id).name,
     memberCount: listMembers(getHouseholdId(user.id)).length,
+    notifyTargets: isAdmin(user) ? listTargets().length : 0,
   };
 };
 

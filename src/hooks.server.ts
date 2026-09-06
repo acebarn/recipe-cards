@@ -50,6 +50,10 @@ const authorization: Handle = async ({ event, resolve }) => {
   // Auth.js-Endpunkte (/auth/*) immer durchlassen.
   if (event.url.pathname.startsWith("/auth")) return resolve(event);
 
+  // Telegram-Webhook: Telegram kann sich nicht anmelden. Die Route prüft
+  // stattdessen den geheimen Header, den Telegram bei setWebhook mitbekommen hat.
+  if (event.url.pathname === "/api/telegram") return resolve(event);
+
   // Dev-Bypass (nur lokal): RECIPE_DEV_USER=<email> umgeht den OAuth-Flow.
   const devEmail = process.env.RECIPE_DEV_USER;
   let user;

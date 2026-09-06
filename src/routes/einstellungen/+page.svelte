@@ -80,7 +80,30 @@
     <span class="arrow">→</span>
   </a>
 
+  <a class="setting" href="/feedback">
+    <span class="ic">💬</span>
+    <span class="body">
+      <span class="t">Rückmeldung geben</span>
+      <span class="d">Fehler melden, Wunsch äußern oder einfach etwas loswerden.</span>
+    </span>
+    <span class="arrow">→</span>
+  </a>
+
   {#if data.isAdmin}
+    <a class="setting" href="/admin/benachrichtigungen">
+      <span class="ic">🔔</span>
+      <span class="body">
+        <span class="t">Benachrichtigungen</span>
+        <span class="d">Telegram-Empfänger für Freigabe-Anfragen und Rückmeldungen.</span>
+      </span>
+      <span class="status" class:on={data.notifyTargets > 0}>
+        {data.notifyTargets > 0
+          ? `${data.notifyTargets} Empfänger`
+          : "keiner"}
+      </span>
+      <span class="arrow">→</span>
+    </a>
+
     <a class="setting" href="/admin/members">
       <span class="ic">👥</span>
       <span class="body">

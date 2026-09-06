@@ -296,4 +296,40 @@ CREATE INDEX idx_audit_action_at ON audit_log(action, at);
 CREATE INDEX idx_audit_recipe ON audit_log(recipe_slug, action);
 `,
   },
+  {
+    id: "010_notify_feedback",
+    sql: `
+-- Benachrichtigungs-Empfänger (Telegram). Ein Bot kann nur Leute anschreiben,
+-- die ihn selbst gestartet haben – deshalb registriert sich jede Person über
+-- einen Einmal-Code selbst, statt dass jemand Chat-IDs von Hand einträgt.
+CREATE TABLE notify_targets (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER REFERENCES users(id),
+  chat_id    TEXT NOT NULL UNIQUE,
+  label      TEXT,
+  created_at TEXT NOT NULL
+);
+
+-- Einmal-Codes für den /start-Deeplink. Kurzlebig, werden beim Einlösen gelöscht.
+CREATE TABLE notify_links (
+  code       TEXT PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL
+);
+
+-- Rückmeldungen aus der App. Wird immer gespeichert, auch wenn die
+-- Benachrichtigung scheitert – so geht nichts verloren.
+CREATE TABLE feedback (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER REFERENCES users(id),
+  category   TEXT NOT NULL,                     -- 'bug' | 'wunsch' | 'lob'
+  message    TEXT NOT NULL,
+  page       TEXT,                              -- wo der Hinweis entstand
+  status     TEXT NOT NULL DEFAULT 'neu',       -- 'neu' | 'erledigt'
+  notified   INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX idx_feedback_status ON feedback(status, created_at);
+`,
+  },
 ];

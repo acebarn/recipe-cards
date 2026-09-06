@@ -38,6 +38,7 @@
         <a class="navbtn" href="/wochenplan" onclick={close}>📅 Wochenplan</a>
         <a class="navbtn" href="/statistik" onclick={close}>📊 Statistik</a>
         <a class="navbtn" href="/add" onclick={close}>+ Hinzufügen</a>
+        <a class="navbtn" href="/feedback" onclick={close}>💬 Rückmeldung</a>
         <a class="navbtn" href="/einstellungen" onclick={close}>⚙️ Einstellungen</a>
       </div>
       <button class="navbtn logout" onclick={() => signOut({ callbackUrl: "/login" })}>Abmelden</button>

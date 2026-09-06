@@ -1,6 +1,7 @@
 // Nutzerverwaltung (Google-OAuth-Allowlist + Owner/Mitglieder).
 // Basis-Operationen; die UI/Approval-Flows folgen mit dem Auth-Layer (M1).
 import { getDb } from "./db.ts";
+import { escapeHtml, notifyAllDetached } from "./notify/targets.ts";
 
 export type UserRole = "owner" | "admin" | "member";
 export type UserStatus = "invited" | "approved" | "blocked";
@@ -150,6 +151,12 @@ export function recordLogin(profile: LoginProfile): User {
       googleSub: profile.googleSub,
       status: "invited",
     });
+    // Nur bei der Erstanmeldung: Admins wissen sonst nicht, dass jemand wartet.
+    // Losgelöst, weil ein Telegram-Ausfall keine Anmeldung blockieren darf.
+    notifyAllDetached(
+      `🔐 <b>Neue Freigabe-Anfrage</b>\n${escapeHtml(profile.name ?? email)}\n` +
+        `${escapeHtml(email)}\n\nFreigeben unter https://recipes.alessiobisgen.de/admin/members`,
+    );
   }
   db.prepare(
     `UPDATE users SET
