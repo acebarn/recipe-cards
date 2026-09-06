@@ -206,22 +206,26 @@ ist vom VPS entfernt.
 
 ## Offene Punkte
 
-- **Redirect-Crash, Ursache noch offen.** Zwischen 15.08. und 31.08. hat sich der
-  Web-Prozess 15× mit `ERR_UNHANDLED_REJECTION` / Grund `#<Redirect>` beendet
-  (Docker startete neu, teils 5 Crashes pro Minute). Zwei Bausteine sind deployt:
-  ein `unhandledRejection`-Guard in `src/hooks.server.ts` (Server läuft weiter und
-  loggt `Redirect(<status> → <ziel>)`) und `tracedRedirect()` aus
-  `src/lib/traced-redirect.ts`, das alle sieben eigenen Redirect-Stellen markiert.
-  **Beim nächsten Vorfall sagt das Log die Antwort:** mit `erzeugt hier:` + Stack
-  ist es eine unserer Stellen, mit `ohne Ursprungsmarkierung` stammt der Redirect
-  aus SvelteKit selbst.
-  *Was bekannt ist:* Laut Nutzer traten die Crashes auf, wenn **zwei Personen
-  gleichzeitig** gearbeitet haben (Rezept anlegen/bearbeiten). Erfolglos
-  nachgestellt: paralleles Speichern desselben und verschiedener Rezepte,
-  404-Fuzzing, abgebrochene Requests, alle Routen mit und ohne Login. Nicht
-  nachstellbar war bisher die Produktionslage mit aktivem Drive-Sync-Worker und
-  echten Gemini-/Pixazo-Hintergrundjobs — dort weitersuchen.
-
+- **App-Blockade — gefunden und behoben (06.09.).** Die App fror regelmäßig für
+  *alle* Nutzer ein. Ursache waren synchrone Kindprozesse im einzigen
+  Node-Event-Loop: `renderCard` rief Typst per `execFileSync` (durch die
+  Auto-Fit-Schleife bis zu 17 Läufe je Karte), der Drive-Sync-Worker rclone per
+  `spawnSync` (drei Netzaufrufe je Rezept). Am laufenden System gemessen: ein
+  einzelner Drive-Upsert blockierte die App **7,2 s**, nach der Umstellung auf
+  `execFile` (asynchron, mit Timeout) **0,27 s**. Merke: **in diesem Projekt nie
+  wieder `*Sync`-Kindprozesse im Serverpfad** — jeder davon legt die ganze App
+  für alle still.
+- **Redirect-Crash, Ursache weiterhin offen.** Davon zu unterscheiden: zwischen
+  15.08. und 31.08. hat sich der Prozess 15× mit `ERR_UNHANDLED_REJECTION` /
+  Grund `#<Redirect>` beendet. Der Guard in `src/hooks.server.ts` hält den Server
+  am Leben und loggt `Redirect(<status> → <ziel>)`; `tracedRedirect()` aus
+  `src/lib/traced-redirect.ts` markiert alle sieben eigenen Redirect-Stellen.
+  **Beim nächsten Vorfall sagt das Log die Antwort** — seit dem Deploy am 04.09.
+  ist keiner mehr aufgetreten. Nicht mit der Blockade oben verwechseln: Das hier
+  ist ein Prozessende, das war ein Hänger.
+- **Lange Aktion ohne Rückmeldung:** „Bild neu generieren" wartet auf Pixazo
+  (Zehner-Sekunden). Seit dem Fix blockiert das niemanden sonst mehr, aber die
+  Seite des Admins wirkt in der Zeit tot — eine Fortschrittsanzeige fehlt.
 - **Gemini Free-Tier-Tagescap:** Importe scheitern bei Erschöpfung (der Auto-Retry
   aus `import-queue.ts` fängt es ab, löst es aber nicht). Billing am Google-Key
   aktivieren.
