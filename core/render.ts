@@ -1,4 +1,5 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, join, relative, sep } from "node:path";
 import type { Recipe } from "./model.ts";
@@ -128,15 +129,23 @@ export interface RenderResult {
   scaleBack: number;
 }
 
+// Typst wird asynchron aufgerufen. Synchron (execFileSync) blockierte es den
+// einzigen Node-Event-Loop: Ein Kartenrender braucht bis zu 17 Typst-Läufe, und
+// solange stand die komplette App für alle Nutzer — genau das war das
+// beobachtete "Einfrieren". Der Timeout verhindert, dass ein hängender Typst
+// die Queue dauerhaft verstopft.
+const run = promisify(execFile);
+const TYPST_TIMEOUT_MS = 60_000;
+
 interface PageInfo {
   front: number; // Seite, auf der die Vorderseite endet
   total: number; // Gesamtseitenzahl
 }
 
 /** Liest das <pageinfo>-Metadatum (Vorderseiten-Endseite + Gesamtseiten). */
-function queryPageInfo(typPath: string, projectRoot: string): PageInfo {
+async function queryPageInfo(typPath: string, projectRoot: string): Promise<PageInfo> {
   try {
-    const out = execFileSync(
+    const { stdout } = await run(
       "typst",
       [
         "query",
@@ -150,9 +159,9 @@ function queryPageInfo(typPath: string, projectRoot: string): PageInfo {
         "value",
         "--one",
       ],
-      { stdio: ["ignore", "pipe", "pipe"] },
-    ).toString();
-    const v = JSON.parse(out) as { front?: number; total?: number };
+      { timeout: TYPST_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
+    );
+    const v = JSON.parse(String(stdout)) as { front?: number; total?: number };
     const front = Number(v.front);
     const total = Number(v.total);
     return { front: Number.isFinite(front) ? front : 1, total: Number.isFinite(total) ? total : 0 };
@@ -164,10 +173,10 @@ function queryPageInfo(typPath: string, projectRoot: string): PageInfo {
 const MIN_SCALE = 0.7; // nicht kleiner skalieren (Lesbarkeit)
 const SCALE_STEP = 0.05;
 
-export function renderCard(
+export async function renderCard(
   recipe: Recipe,
   options: { projectRoot: string; outDir: string; scale: number; slug?: string },
-): RenderResult {
+): Promise<RenderResult> {
   const { projectRoot, outDir, scale } = options;
   // Bevorzugt der explizit übergebene (gespeicherte) Slug; sonst aus dem Titel.
   const slug = options.slug ?? slugify(recipe);
@@ -190,12 +199,12 @@ export function renderCard(
   const pdfPath = join(outDir, `${slug}.pdf`);
 
   const round2 = (n: number) => Math.round(n * 100) / 100;
-  const compileWith = (sf: number, sb: number): PageInfo => {
+  const compileWith = async (sf: number, sb: number): Promise<PageInfo> => {
     writeFileSync(jsonPath, JSON.stringify({ ...data, scale_front: sf, scale_back: sb }, null, 2), "utf8");
-    execFileSync(
+    await run(
       "typst",
       ["compile", "--root", projectRoot, "--font-path", join(projectRoot, "fonts"), typPath, pdfPath],
-      { stdio: ["ignore", "ignore", "pipe"] },
+      { timeout: TYPST_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
     );
     return queryPageInfo(typPath, projectRoot);
   };
@@ -204,16 +213,16 @@ export function renderCard(
   // Rückseite je genau eine Seite belegen (bis zur Mindestgröße).
   let sf = 1;
   let sb = 1;
-  let info = compileWith(sf, sb);
+  let info = await compileWith(sf, sb);
   for (let guard = 0; guard < 16; guard++) {
     if (info.front > 1 && sf > MIN_SCALE) {
       sf = Math.max(MIN_SCALE, round2(sf - SCALE_STEP));
-      info = compileWith(sf, sb);
+      info = await compileWith(sf, sb);
       continue;
     }
     if (info.total - info.front > 1 && sb > MIN_SCALE) {
       sb = Math.max(MIN_SCALE, round2(sb - SCALE_STEP));
-      info = compileWith(sf, sb);
+      info = await compileWith(sf, sb);
       continue;
     }
     break;

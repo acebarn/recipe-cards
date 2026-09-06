@@ -1,0 +1,50 @@
+{
+  "title": "Blockadetest",
+  "theme": {
+    "hue": 154,
+    "source": "title",
+    "accent": "#2f9368",
+    "accentSoft": "#b8e0cf",
+    "panelBg": "#e2f3ec",
+    "panelText": "#1d533c",
+    "panelHeading": "#257e58",
+    "chipBg": "#e7f3ee",
+    "noteBg": "#daf1e7",
+    "placeholderBg": "#cee9dd"
+  },
+  "image": null,
+  "difficulty": null,
+  "category": "hauptgerichte",
+  "region": null,
+  "servings": "2",
+  "times": [],
+  "equipment": [],
+  "ingredients": [
+    {
+      "name": null,
+      "items": [
+        "200 g Mehl",
+        "2 Eier",
+        "1 Prise Salz"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "text": "Alles verrühren."
+    },
+    {
+      "n": 2,
+      "text": "Ruhen lassen."
+    },
+    {
+      "n": 3,
+      "text": "Backen."
+    }
+  ],
+  "notes": [],
+  "sources": [],
+  "scale_front": 1,
+  "scale_back": 1
+}

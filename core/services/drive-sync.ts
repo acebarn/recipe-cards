@@ -3,7 +3,8 @@
 //
 // Opt-in: läuft nur, wenn RECIPE_SYNC=1 gesetzt ist (verhindert versehentliche
 // Drive-Schreibzugriffe im lokalen Dev). In Produktion im Container aktivieren.
-import { spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,16 +28,32 @@ interface SyncRow {
   attempts: number;
 }
 
-function rclone(args: string[]): { ok: boolean; stderr: string } {
-  const r = spawnSync("rclone", args, { encoding: "utf8" });
-  return { ok: !r.error && r.status === 0, stderr: r.stderr || r.error?.message || "" };
+// rclone asynchron aufrufen: synchron (spawnSync) hielt der Worker den einzigen
+// Event-Loop an — bei drei Netzaufrufen pro Rezept stand die App sekundenlang
+// für alle. Timeout, damit ein hängender Transfer die Queue nicht blockiert.
+const run = promisify(execFile);
+const RCLONE_TIMEOUT_MS = 120_000;
+
+async function rclone(args: string[]): Promise<{ ok: boolean; stderr: string }> {
+  try {
+    await run("rclone", args, { timeout: RCLONE_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 });
+    return { ok: true, stderr: "" };
+  } catch (e) {
+    const err = e as { stderr?: string | Buffer; message?: string };
+    return { ok: false, stderr: String(err.stderr ?? err.message ?? "") };
+  }
 }
 
 /** Prüft, ob das konfigurierte rclone-Remote existiert. */
-export function driveConfigured(): boolean {
-  const r = spawnSync("rclone", ["listremotes"], { encoding: "utf8" });
-  if (r.error || r.status !== 0) return false;
-  return r.stdout.split(/\r?\n/).some((l) => l.trim() === `${REMOTE()}:`);
+export async function driveConfigured(): Promise<boolean> {
+  try {
+    const { stdout } = await run("rclone", ["listremotes"], { timeout: 15_000 });
+    return String(stdout)
+      .split(/\r?\n/)
+      .some((l) => l.trim() === `${REMOTE()}:`);
+  } catch {
+    return false;
+  }
 }
 
 function drivePath(type: "md" | "pdf" | "assets", cat: string | null, file: string): string {
@@ -47,21 +64,24 @@ function drivePath(type: "md" | "pdf" | "assets", cat: string | null, file: stri
 }
 
 /** Aktuelles Rezept nach Drive spiegeln (md + gerendertes pdf + Bild). */
-function processUpsert(slug: string): boolean {
+async function processUpsert(slug: string): Promise<boolean> {
   const r = getRecipeBySlug(slug);
   if (!r) return true; // wurde gelöscht → ein Delete-Eintrag erledigt den Rest
   const tmp = mkdtempSync(join(tmpdir(), "recipe-sync-"));
   try {
     const mdFile = join(tmp, `${slug}.md`);
     writeFileSync(mdFile, r.markdownBody);
-    if (!rclone(["copyto", mdFile, drivePath("md", r.categoryDir ?? null, `${slug}.md`)]).ok) return false;
+    if (!(await rclone(["copyto", mdFile, drivePath("md", r.categoryDir ?? null, `${slug}.md`)])).ok) return false;
 
-    const pdf = renderCard(toRecipe(r), { projectRoot: getProjectRoot(), outDir: tmp, scale: 1, slug });
-    if (!rclone(["copyto", pdf.pdfPath, drivePath("pdf", r.categoryDir ?? null, `${slug}.pdf`)]).ok) return false;
+    const pdf = await renderCard(toRecipe(r), { projectRoot: getProjectRoot(), outDir: tmp, scale: 1, slug });
+    if (!(await rclone(["copyto", pdf.pdfPath, drivePath("pdf", r.categoryDir ?? null, `${slug}.pdf`)])).ok) {
+      return false;
+    }
 
     if (r.imageFilename) {
       const local = join(getProjectRoot(), "assets", r.imageFilename);
-      if (existsSync(local)) rclone(["copyto", local, drivePath("assets", null, r.imageFilename)]); // best effort
+      // best effort – ein fehlendes Bild soll den Rest nicht scheitern lassen
+      if (existsSync(local)) await rclone(["copyto", local, drivePath("assets", null, r.imageFilename)]);
     }
     return true;
   } finally {
@@ -70,14 +90,14 @@ function processUpsert(slug: string): boolean {
 }
 
 /** Rezept aus Drive entfernen (gezielt) und danach die soft-gelöschte Zeile purgen. */
-function processDelete(row: SyncRow): boolean {
-  const del = (path: string): boolean => {
-    const { ok, stderr } = rclone(["deletefile", path]);
+async function processDelete(row: SyncRow): Promise<boolean> {
+  const del = async (path: string): Promise<boolean> => {
+    const { ok, stderr } = await rclone(["deletefile", path]);
     return ok || NOT_FOUND.test(stderr); // bereits weg = ok
   };
-  const okMd = del(drivePath("md", row.category_dir, `${row.recipe_slug}.md`));
-  const okPdf = del(drivePath("pdf", row.category_dir, `${row.recipe_slug}.pdf`));
-  const okImg = row.image_path ? del(drivePath("assets", null, row.image_path)) : true;
+  const okMd = await del(drivePath("md", row.category_dir, `${row.recipe_slug}.md`));
+  const okPdf = await del(drivePath("pdf", row.category_dir, `${row.recipe_slug}.pdf`));
+  const okImg = row.image_path ? await del(drivePath("assets", null, row.image_path)) : true;
   if (okMd && okPdf && okImg) {
     purgeRecipe(row.recipe_slug);
     return true;
@@ -91,7 +111,7 @@ let running = false;
 /** Verarbeitet alle ausstehenden Queue-Einträge einmal. */
 export async function processPending(): Promise<void> {
   if (!enabled() || running) return;
-  if (!driveConfigured()) return;
+  if (!(await driveConfigured())) return;
   running = true;
   try {
     const db = getDb();
@@ -101,7 +121,7 @@ export async function processPending(): Promise<void> {
     for (const row of rows) {
       let ok = false;
       try {
-        ok = row.op === "delete" ? processDelete(row) : processUpsert(row.recipe_slug);
+        ok = row.op === "delete" ? await processDelete(row) : await processUpsert(row.recipe_slug);
       } catch (e) {
         console.error(`Drive-Sync ${row.op} ${row.recipe_slug}:`, (e as Error).message);
       }
@@ -128,15 +148,18 @@ let started = false;
 /** Startet den periodischen Worker (nur bei RECIPE_SYNC=1 und vorhandenem Remote). */
 export function startSyncWorker(): void {
   if (started || !enabled()) return;
-  if (!driveConfigured()) {
-    console.error(`Drive-Sync: kein rclone-Remote "${REMOTE()}:" – Worker bleibt aus.`);
-    return;
-  }
   started = true;
-  const interval = Number(process.env.SYNC_INTERVAL_MS) || 30000;
-  setInterval(() => void processPending(), interval);
-  void processPending();
-  console.error(`Drive-Sync aktiv: ${REMOTE()}:${FOLDER()} (alle ${interval / 1000}s).`);
+  void (async () => {
+    if (!(await driveConfigured())) {
+      started = false;
+      console.error(`Drive-Sync: kein rclone-Remote "${REMOTE()}:" – Worker bleibt aus.`);
+      return;
+    }
+    const interval = Number(process.env.SYNC_INTERVAL_MS) || 30000;
+    setInterval(() => void processPending(), interval);
+    void processPending();
+    console.error(`Drive-Sync aktiv: ${REMOTE()}:${FOLDER()} (alle ${interval / 1000}s).`);
+  })();
 }
 
 /** Sofortigen Sync-Lauf anstoßen (nach einem Schreibzugriff). No-op, wenn deaktiviert. */

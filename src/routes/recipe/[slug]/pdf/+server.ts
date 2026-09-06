@@ -14,11 +14,10 @@ function parseScale(raw: string | null): number {
   return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
-// Hinweis: renderCard ruft Typst synchron (execFileSync) auf – das blockiert
-// den Event-Loop für die Dauer des Compiles. Da der Aufruf atomar bzgl. des
-// Loops ist, können sich gleichzeitige Renders desselben Slugs nicht ins
-// Gehege kommen; eine separate Render-Queue ist daher nicht nötig.
-export const GET: RequestHandler = ({ params, url, locals }) => {
+// renderCard ruft Typst asynchron auf. Früher lief das synchron und blockierte
+// den Event-Loop für die Dauer des Compiles — ein einzelner Kartendruck legte
+// damit die App für alle anderen lahm.
+export const GET: RequestHandler = async ({ params, url, locals }) => {
   const stored = getRecipeBySlug(params.slug);
   if (!stored) throw error(404, "Rezept nicht gefunden");
 
@@ -26,7 +25,7 @@ export const GET: RequestHandler = ({ params, url, locals }) => {
   const outDir = join(tmpdir(), "recipe-pdf");
   let result;
   try {
-    result = renderCard(toRecipe(stored), {
+    result = await renderCard(toRecipe(stored), {
       projectRoot: getProjectRoot(),
       outDir,
       scale,
