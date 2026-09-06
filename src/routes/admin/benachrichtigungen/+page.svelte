@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import Spinner from "$lib/Spinner.svelte";
   import type { ActionData, PageData } from "./$types";
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -9,6 +10,16 @@
   let deeplink = $derived(
     form?.code && data.botUsername ? `https://t.me/${data.botUsername}?start=${form.code}` : null,
   );
+  // Testnachricht geht an alle Empfaenger und wartet auf Telegram.
+  let testet = $state(false);
+  const testen = () => {
+    testet = true;
+    return async ({ update }: { update: () => Promise<void> }) => {
+      await update();
+      testet = false;
+    };
+  };
+
   const KAT: Record<string, string> = { bug: "🐞 Fehler", wunsch: "💡 Wunsch", lob: "💬 Rückmeldung" };
   const datum = (iso: string) =>
     new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" });
@@ -56,8 +67,10 @@
         {data.selbstVerbunden ? "Neu verbinden" : "Telegram verbinden"}
       </button>
     </form>
-    <form method="POST" action="?/test" use:enhance>
-      <button class="btn ghost" type="submit" disabled={!data.targets.length}>Testnachricht</button>
+    <form method="POST" action="?/test" use:enhance={testen}>
+      <button class="btn ghost" type="submit" disabled={testet || !data.targets.length}>
+        {#if testet}<Spinner /> Sende …{:else}Testnachricht{/if}
+      </button>
     </form>
   </div>
 

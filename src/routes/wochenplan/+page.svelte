@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import Spinner from "$lib/Spinner.svelte";
   import { enhance } from "$app/forms";
   import type { ActionData, PageData } from "./$types";
 
@@ -25,14 +26,24 @@
       : [],
   );
 
-  const refresh = () => async ({ update }: { update: () => Promise<void> }) => {
-    await update();
+  // Ein- und Austragen laeuft ueber die Google-Kalender-API — sichtbar machen.
+  let laufend = $state(0);
+  const refresh = () => {
+    laufend += 1;
+    return async ({ update }: { update: () => Promise<void> }) => {
+      await update();
+      laufend -= 1;
+    };
   };
 </script>
 
 <svelte:head><title>Wochenplan · SCHMACKOFATZ</title></svelte:head>
 
 <p class="back"><a href="/">← Übersicht</a></p>
+{#if laufend > 0}
+  <p class="kal-busy"><Spinner /> Kalender wird aktualisiert …</p>
+{/if}
+
 <h2 class="page-title">📅 Wochenplan</h2>
 
 {#if !data.connected}
@@ -114,6 +125,14 @@
 {/if}
 
 <style>
+  .kal-busy {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin: 0 0 0.4rem;
+  }
   .back a {
     color: var(--ink);
     font-weight: 600;

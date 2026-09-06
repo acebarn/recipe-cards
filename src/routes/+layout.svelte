@@ -1,5 +1,6 @@
 <script lang="ts">
   import { signOut } from "@auth/sveltekit/client";
+  import { navigating } from "$app/state";
   import "../app.css";
   import type { LayoutData } from "./$types";
 
@@ -7,6 +8,20 @@
 
   let menuOpen = $state(false);
   const close = () => (menuOpen = false);
+
+  // Manche Seiten holen beim Laden Daten von aussen (Einkaufsliste und Inventar
+  // von Bring, Kalender von Google). Bis dahin passiert sichtbar nichts — der
+  // Balken zeigt, dass die App arbeitet. Erst nach 150ms, damit schnelle
+  // Wechsel nicht flackern.
+  let navLaeuft = $state(false);
+  $effect(() => {
+    if (!navigating.to) {
+      navLaeuft = false;
+      return;
+    }
+    const t = setTimeout(() => (navLaeuft = true), 150);
+    return () => clearTimeout(t);
+  });
 </script>
 
 <header class="app-header" class:menu-open={menuOpen}>
@@ -46,6 +61,35 @@
   {/if}
 </header>
 
+{#if navLaeuft}
+  <div class="navbalken" role="status" aria-live="polite" aria-label="Seite wird geladen"></div>
+{/if}
+
 <main>
   {@render children()}
 </main>
+
+<style>
+  /* Ladebalken bei Seitenwechseln, die auf externe Daten warten */
+  .navbalken {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    z-index: 100;
+    background: linear-gradient(90deg, var(--red), var(--yellow), var(--blue));
+    background-size: 200% 100%;
+    animation: navlauf 1.1s linear infinite;
+  }
+  @keyframes navlauf {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .navbalken {
+      animation: none;
+    }
+  }
+</style>

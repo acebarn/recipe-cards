@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import Spinner from "$lib/Spinner.svelte";
   import { page } from "$app/state";
   import type { ActionData, PageData } from "./$types";
 
@@ -7,6 +8,16 @@
 
   // Kategorie erst wählen, dann schreiben — der Weg soll auf einen Blick klar sein.
   let gewaehlt = $state<string | null>(null);
+  // Der Versand wartet auf Telegram (bis zu 10s Timeout) — ohne Anzeige waere
+  // unklar, ob der Klick angekommen ist.
+  let sendet = $state(false);
+  const senden = () => {
+    sendet = true;
+    return async ({ update }: { update: () => Promise<void> }) => {
+      await update();
+      sendet = false;
+    };
+  };
   let text = $state("");
   const MAX = 2000;
   let rest = $derived(MAX - text.length);
@@ -36,7 +47,7 @@
     an die Betreuer der App.
   </p>
 
-  <form method="POST" use:enhance>
+  <form method="POST" use:enhance={senden}>
     <input type="hidden" name="page" value={herkunft} />
 
     <!-- Schritt 1: Kategorie -->
@@ -77,8 +88,8 @@
     {#if form?.error}<p class="fehler">{form.error}</p>{/if}
 
     <div class="aktionen">
-      <button class="btn" type="submit" disabled={!gewaehlt || text.trim().length < 5}>
-        Abschicken
+      <button class="btn" type="submit" disabled={sendet || !gewaehlt || text.trim().length < 5}>
+        {#if sendet}<Spinner /> Wird gesendet …{:else}Abschicken{/if}
       </button>
       <span class="signatur">wird gesendet als <strong>{data.name}</strong></span>
     </div>

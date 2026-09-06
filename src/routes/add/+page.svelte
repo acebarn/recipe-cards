@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import Spinner from "$lib/Spinner.svelte";
   import type { ActionData } from "./$types";
 
   let { form }: { form: ActionData } = $props();
@@ -8,12 +9,29 @@
   let tab = $state<Tab>("link");
   let busy = $state(false);
 
+  // Der Import laeuft ueber Gemini und dauert je nach Quelle zehner Sekunden.
+  // Ohne sichtbaren Fortschritt wirkt die Seite in der Zeit eingefroren, deshalb
+  // eine mitlaufende Sekundenanzeige statt nur "bitte warten".
+  let sekunden = $state(0);
+  let ticker: ReturnType<typeof setInterval> | undefined;
+
   const submit = () => {
     busy = true;
+    sekunden = 0;
+    clearInterval(ticker);
+    ticker = setInterval(() => (sekunden += 1), 1000);
     return async ({ update }: { update: () => Promise<void> }) => {
       await update();
+      clearInterval(ticker);
       busy = false;
     };
+  };
+
+  const LABEL: Record<Tab, string> = {
+    link: "Webseite wird geladen und ausgewertet",
+    reel: "Reel-Caption wird geholt und ausgewertet",
+    photo: "Fotos werden gelesen und ausgewertet",
+    text: "Text wird ausgewertet",
   };
 </script>
 
@@ -31,35 +49,53 @@
 
 {#if form?.error}<p class="msg err">{form.error}</p>{/if}
 {#if form?.queued}<p class="msg ok">⏳ Der Rezept-Dienst ist gerade ausgelastet. Deine Eingabe wurde gespeichert und wird automatisch weiter versucht – das fertige Rezept erscheint danach in deiner Bibliothek.</p>{/if}
-{#if busy}<p class="msg info">Rezept wird extrahiert … das kann einen Moment dauern.</p>{/if}
+{#if busy}
+  <p class="msg info arbeitet">
+    <Spinner label="Import läuft" />
+    <span>{LABEL[tab]} … <strong>{sekunden}s</strong></span>
+  </p>
+{/if}
 
 {#if tab === "link"}
   <form method="POST" action="?/link" use:enhance={submit}>
     <input type="url" name="url" placeholder="https://… (Rezept-Webseite)" required />
-    <button type="submit" class="btn primary" disabled={busy}>Importieren</button>
+    <button type="submit" class="btn primary" disabled={busy}>
+      {#if busy}<Spinner /> Importiert …{:else}Importieren{/if}
+    </button>
   </form>
   <p class="hint">Die Webseite wird geladen und das Rezept per Gemini extrahiert.</p>
 {:else if tab === "reel"}
   <form method="POST" action="?/reel" use:enhance={submit}>
     <input type="url" name="url" placeholder="https://www.instagram.com/reel/…" required />
-    <button type="submit" class="btn primary" disabled={busy}>Importieren</button>
+    <button type="submit" class="btn primary" disabled={busy}>
+      {#if busy}<Spinner /> Importiert …{:else}Importieren{/if}
+    </button>
   </form>
   <p class="hint">Holt die Caption des Reels und extrahiert daraus das Rezept. Funktioniert, wenn das Rezept in der Bildunterschrift steht (sonst Text kopieren).</p>
 {:else if tab === "photo"}
   <form method="POST" action="?/photo" enctype="multipart/form-data" use:enhance={submit}>
     <input type="file" name="photos" accept="image/*,.heic,.heif" multiple required />
-    <button type="submit" class="btn primary" disabled={busy}>Importieren</button>
+    <button type="submit" class="btn primary" disabled={busy}>
+      {#if busy}<Spinner /> Importiert …{:else}Importieren{/if}
+    </button>
   </form>
   <p class="hint">Ein oder mehrere Fotos (z.B. Kochbuchseiten, auch HEIC). Mehrere = mehrseitiges Rezept.</p>
 {:else}
   <form method="POST" action="?/text" use:enhance={submit}>
     <textarea name="text" rows="10" placeholder="Rezepttext einfügen …" required></textarea>
-    <button type="submit" class="btn primary" disabled={busy}>Importieren</button>
+    <button type="submit" class="btn primary" disabled={busy}>
+      {#if busy}<Spinner /> Importiert …{:else}Importieren{/if}
+    </button>
   </form>
   <p class="hint">Freier Rezepttext (Zutaten + Zubereitung).</p>
 {/if}
 
 <style>
+  .msg.info.arbeitet {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
   .back a {
     color: var(--ink);
     font-weight: 600;

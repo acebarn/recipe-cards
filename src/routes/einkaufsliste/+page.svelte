@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import Spinner from "$lib/Spinner.svelte";
   import { invalidateAll } from "$app/navigation";
   import { onDestroy } from "svelte";
   import type { ActionData, PageData } from "./$types";
@@ -7,6 +8,23 @@
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let editing = $state<string | null>(null);
+  // Jede Aktion hier spricht ueber Bring mit dem Netz. Statt zehn einzelner
+  // Zustaende ein Zaehler: sobald irgendetwas laeuft, zeigt die Kopfzeile das an.
+  let laufend = $state(0);
+  const bring = () => {
+    laufend += 1;
+    return async ({ update }: { update: () => Promise<void> }) => {
+      await update();
+      laufend -= 1;
+    };
+  };
+  // Auch das manuelle Aktualisieren holt die Liste neu von Bring.
+  let laedt = $state(false);
+  const neuLaden = async () => {
+    laedt = true;
+    await invalidateAll();
+    laedt = false;
+  };
   let autoRefresh = $state(false);
   let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -48,14 +66,17 @@
   <div class="account-bar">
     <span>Liste <strong>{data.listName}</strong></span>
     <span class="bar-actions">
-      <button class="btn" onclick={() => invalidateAll()}>Aktualisieren</button>
+      <button class="btn" onclick={neuLaden} disabled={laedt}>
+        {#if laedt}<Spinner /> Lädt …{:else}Aktualisieren{/if}
+      </button>
+      {#if laufend > 0}<span class="bring-busy"><Spinner /> Bring wird aktualisiert …</span>{/if}
       <label class="auto"><input type="checkbox" bind:checked={autoRefresh} /> Auto</label>
     </span>
   </div>
 
   {#if data.error}<p class="msg err">{data.error}</p>{/if}
 
-  <form method="POST" action="?/addItem" use:enhance class="add-item">
+  <form method="POST" action="?/addItem" use:enhance={bring} class="add-item">
     <input type="text" name="name" placeholder="Zutat" required />
     <input type="text" name="quantity" placeholder="Menge (optional)" />
     <button class="btn primary" type="submit">+</button>
@@ -67,7 +88,7 @@
       <ul class="items">
         {#each g.items as it (it.name)}
           <li>
-            <form method="POST" action="?/toggle" use:enhance class="check">
+            <form method="POST" action="?/toggle" use:enhance={bring} class="check">
               <input type="hidden" name="name" value={it.name} />
               <input type="hidden" name="quantity" value={it.quantity} />
               <input type="hidden" name="done" value="true" />
@@ -79,8 +100,12 @@
             </form>
             {#if editing === it.name}
               <form method="POST" action="?/updateItem" use:enhance={() => {
+                laufend += 1;
                 editing = null;
-                return async ({ update }) => update();
+                return async ({ update }) => {
+                  await update();
+                  laufend -= 1;
+                };
               }} class="edit">
                 <input type="hidden" name="name" value={it.name} />
                 <input type="text" name="newName" value={it.name} />
@@ -93,11 +118,11 @@
                 {#if it.quantity}<span class="iqty">{it.quantity}</span>{/if}
               </button>
             {/if}
-            <form method="POST" action="?/addStandard" use:enhance class="del">
+            <form method="POST" action="?/addStandard" use:enhance={bring} class="del">
               <input type="hidden" name="name" value={it.name} />
               <button class="star" type="submit" aria-label={`„${it.name}" als Standardzutat`} title="Als Standardzutat">★</button>
             </form>
-            <form method="POST" action="?/removeItem" use:enhance class="del">
+            <form method="POST" action="?/removeItem" use:enhance={bring} class="del">
               <input type="hidden" name="name" value={it.name} />
               <button class="x" type="submit" aria-label="Entfernen">✕</button>
             </form>
@@ -117,7 +142,7 @@
       <ul class="items">
         {#each data.doneItems as it (it.name)}
           <li>
-            <form method="POST" action="?/toggle" use:enhance class="check">
+            <form method="POST" action="?/toggle" use:enhance={bring} class="check">
               <input type="hidden" name="name" value={it.name} />
               <input type="hidden" name="quantity" value={it.quantity} />
               <input type="hidden" name="done" value="false" />
@@ -145,18 +170,18 @@
       {#each data.standard as s (s.id)}
         <li class="chip">
           <span>{s.name}</span>
-          <form method="POST" action="?/quickAddStandard" use:enhance>
+          <form method="POST" action="?/quickAddStandard" use:enhance={bring}>
             <input type="hidden" name="name" value={s.name} />
             <button class="mini" type="submit" title="Auf die Liste">+</button>
           </form>
-          <form method="POST" action="?/removeStandard" use:enhance>
+          <form method="POST" action="?/removeStandard" use:enhance={bring}>
             <input type="hidden" name="id" value={s.id} />
             <button class="mini x" type="submit" title="Entfernen">✕</button>
           </form>
         </li>
       {/each}
     </ul>
-    <form method="POST" action="?/addStandard" use:enhance class="add-item">
+    <form method="POST" action="?/addStandard" use:enhance={bring} class="add-item">
       <input type="text" name="name" placeholder="Standardzutat (z. B. Salz)" required />
       <button class="btn" type="submit">+</button>
     </form>
@@ -164,6 +189,13 @@
 {/if}
 
 <style>
+  .bring-busy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
   .back a {
     color: var(--ink);
     font-weight: 600;

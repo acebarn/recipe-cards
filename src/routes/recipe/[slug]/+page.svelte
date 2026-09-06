@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import Spinner from "$lib/Spinner.svelte";
   import { enhance } from "$app/forms";
   import { formatQuantity, scaleIngredient } from "$core/scale.ts";
   import Stepper from "$lib/Stepper.svelte";
@@ -13,6 +14,19 @@
   let showImagePanel = $state(false);
   let imageSubject = $state(untrack(() => data.imageSubject));
   let regenerating = $state(false);
+  // Der PDF-Link ist eine normale Navigation in einen neuen Tab — dort kann kein
+  // enhance greifen. Typst rendert aber ein bis mehrere Sekunden, deshalb hier
+  // ein Zustand, der beim Rueckkehren zum Tab (focus) wieder aufraeumt.
+  let pdfLaeuft = $state(false);
+  const pdfGestartet = () => {
+    pdfLaeuft = true;
+    const fertig = () => {
+      pdfLaeuft = false;
+      window.removeEventListener("focus", fertig);
+    };
+    window.addEventListener("focus", fertig);
+    setTimeout(fertig, 30_000); // Notbremse, falls der Tab nie zurueckkommt
+  };
   let addingToList = $state(false);
 
   // Einkaufsliste + "noch vorrätig?"-Dialog
@@ -67,7 +81,9 @@
     <div class="tools">
       <Stepper bind:value={scale} />
       <a class="btn" href={cookHref}>🍳 Kochmodus</a>
-      <a class="btn" href={pdfHref} target="_blank" rel="noopener">Rezeptkarte</a>
+      <a class="btn" href={pdfHref} target="_blank" rel="noopener" onclick={pdfGestartet}>
+        {#if pdfLaeuft}<Spinner /> Karte wird gesetzt …{:else}Rezeptkarte{/if}
+      </a>
       <form
         bind:this={addListForm}
         method="POST"
@@ -88,7 +104,7 @@
           disabled={addingToList}
           onclick={() => (invMatches.length ? (showInvDialog = true) : addListForm.requestSubmit())}
         >
-          {addingToList ? "… wird hinzugefügt" : "🛒 Auf die Einkaufsliste"}
+          {#if addingToList}<Spinner /> wird hinzugefügt …{:else}🛒 Auf die Einkaufsliste{/if}
         </button>
 
         {#if showInvDialog}
@@ -165,7 +181,9 @@
             {#if planRecurrence !== "none"}
               <label>bis (optional) <input type="date" name="until" bind:value={planUntil} /></label>
             {/if}
-            <button class="btn" type="submit" disabled={planning}>{planning ? "…" : "Einplanen"}</button>
+            <button class="btn" type="submit" disabled={planning}>
+              {#if planning}<Spinner /> Trage ein …{:else}Einplanen{/if}
+            </button>
           </div>
         </form>
       {:else}
@@ -262,7 +280,7 @@
           ></textarea>
           <div class="admin-row">
             <button class="btn" type="submit" disabled={regenerating}>
-              {regenerating ? "Generiere …" : "Neu generieren"}
+              {#if regenerating}<Spinner /> Generiere …{:else}Neu generieren{/if}
             </button>
             <span class="hint">Erzeugt ein neues Aquarell (dauert einige Sekunden).</span>
           </div>

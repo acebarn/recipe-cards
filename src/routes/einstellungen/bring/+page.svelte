@@ -1,7 +1,18 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import Spinner from "$lib/Spinner.svelte";
   import type { ActionData, PageData } from "./$types";
   let { data, form }: { data: PageData; form: ActionData } = $props();
+
+  // Das Verknuepfen meldet sich bei Bring an — ein Netzaufruf mit spuerbarer Dauer.
+  let verknuepft = $state(false);
+  const anmelden = () => {
+    verknuepft = true;
+    return async ({ update }: { update: () => Promise<void> }) => {
+      await update();
+      verknuepft = false;
+    };
+  };
 </script>
 
 <svelte:head><title>Einkaufsliste verknüpfen · SCHMACKOFATZ</title></svelte:head>
@@ -18,10 +29,12 @@
       Verbinde dein eigenes Bring-Konto. Dein Passwort wird verschlüsselt gespeichert und nur
       genutzt, um in deinem Namen Einträge zu lesen und zu schreiben.
     </p>
-    <form method="POST" action="?/linkBring" use:enhance class="stack">
+    <form method="POST" action="?/linkBring" use:enhance={anmelden} class="stack">
       <input type="email" name="email" placeholder="Bring-E-Mail" required />
       <input type="password" name="password" placeholder="Bring-Passwort" required />
-      <button class="btn" type="submit">Verknüpfen</button>
+      <button class="btn" type="submit" disabled={verknuepft}>
+        {#if verknuepft}<Spinner /> Melde an …{:else}Verknüpfen{/if}
+      </button>
     </form>
   {:else}
     <p class="hint">Verknüpft als <strong>{data.email}</strong>.</p>
