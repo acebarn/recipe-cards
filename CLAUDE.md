@@ -134,6 +134,13 @@ Davor: Cloudflare (Full-strict) → nginx → Container `recipe-web` auf
 `127.0.0.1:3000`. Reine Env-Änderungen brauchen keinen Rebuild, nur
 `docker compose up -d web`.
 
+## Bildgenerierung
+
+Cloudflare Workers AI (`@cf/black-forest-labs/flux-1-schnell`, kostenloses
+Tageskontingent), Variablen `CLOUDFLARE_ACCOUNT_ID` und `CLOUDFLARE_API_TOKEN`
+in `web.env`. Zuvor Pixazo — dessen Guthaben war leer (HTTP 403). Das Modell
+nimmt **keinen `seed`** an (HTTP 400); jeder Aufruf liefert ein neues Bild.
+
 ## Benachrichtigungen & Feedback
 
 Freigabe-Anfragen (Erstanmeldung) und Rückmeldungen aus `/feedback` gehen per
