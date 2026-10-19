@@ -26,7 +26,7 @@ export async function generateAndStoreImage(
   }
   const filename = `${slug}.${ext}`;
   writeFileSync(join(dir, filename), buffer);
-  setRecipeImage(slug, filename, { source: "pixazo", mime: `image/${ext === "jpg" ? "jpeg" : ext}` });
+  setRecipeImage(slug, filename, { source: "cloudflare", mime: `image/${ext === "jpg" ? "jpeg" : ext}` });
   // Drive-Spiegel nachziehen: Beim Import wird der Upsert eingereiht, bevor das
   // Bild fertig ist – ohne diesen zweiten Upsert fehlten in Drive das Bild und
   // ein bebildertes PDF (21 von 64 Rezepten waren davon betroffen).

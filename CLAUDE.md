@@ -14,7 +14,7 @@ alles auf Deutsch. Englisch nur in `image_subject` (Prompt für die Bildgenerier
 Drive ist ein *einseitiger* Backup-Mirror: der Sync-Worker schreibt Markdown + PDF
 dorthin (inkl. Lösch-Propagierung), liest aber nie zurück. Die App ist ein
 SvelteKit-Server (adapter-node) hinter Google-OAuth mit Allowlist; externe Dienste
-sind Gemini (Import), Pixazo (Aquarell-Bilder), Typst (PDF-Karten), Bring
+sind Gemini (Import), Cloudflare Workers AI (Aquarell-Bilder), Typst (PDF-Karten), Bring
 (Einkaufsliste) und Google Calendar (Wochenplan).
 
 ```

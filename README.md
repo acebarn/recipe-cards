@@ -48,7 +48,7 @@ gespiegelt.
 - **SvelteKit 2 / Svelte 5** (Runes), `@sveltejs/adapter-node`
 - **SQLite** via `better-sqlite3` (WAL), Schema über eingebettete Migrationen
 - **@auth/sveltekit** (Google OAuth)
-- **Typst** für das PDF-Rendering der Karten, **Pixazo FLUX** für die Aquarell-Bilder,
+- **Typst** für das PDF-Rendering der Karten, **Cloudflare Workers AI (FLUX)** für die Aquarell-Bilder,
   **Google Gemini** für den Import
 - **bring-shopping** (Bring!), Google-Calendar-REST, **rclone** (Drive-Sicherung)
 - Node ≥ 23.6 – TypeScript läuft ohne Build-Schritt direkt (auch in den Wartungsskripten)
@@ -84,7 +84,7 @@ Weitere Befehle: `npm run build` / `npm run preview` (Produktion), `npm run chec
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google-OAuth-Client (Web) |
 | `ORIGIN` | öffentliche URL (hinter Proxy nötig, z. B. für Callbacks) |
 | `GEMINI_API_KEY` | Rezept-Import (Gemini) |
-| `PIXAZO_API_KEY` | Aquarell-Bildgenerierung |
+| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN` | Aquarell-Bildgenerierung (Workers AI, FLUX schnell) |
 | `RECIPE_DB_PATH` | Pfad zur SQLite-DB (Standard `<root>/data/library.db`) |
 | `RECIPE_PROJECT_ROOT` | Root für Typst/Assets (im Container `/app`) |
 | `RECIPE_SYNC` | `1` aktiviert den Drive-Sync-Worker (sonst aus) |
@@ -144,7 +144,7 @@ Einmal-/Wartungsläufe gegen die SQLite-Bibliothek (nicht im Normalbetrieb nöti
 
 ```bash
 npm run seed                               # Bibliothek aus Google Drive in die DB ziehen
-node scripts/gen-images-db.ts              # fehlende Aquarell-Bilder nachgenerieren (Pixazo)
+node scripts/gen-images-db.ts              # fehlende Aquarell-Bilder nachgenerieren (Workers AI)
 node scripts/map-steps-db.ts               # Schritt→Zutat-Zuordnung neu erzeugen (Gemini)
 node scripts/reprocess-ingredients.ts      # Zutaten neu parsen
 node scripts/backfill-categories.ts        # Kategorien nachziehen

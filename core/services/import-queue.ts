@@ -38,7 +38,7 @@ export async function createRecipeFromInput(input: Input, userId?: number): Prom
   });
   enqueueUpsert(slug);
   // Aquarell-Bild + Schritt→Zutat-Zuordnung asynchron erzeugen (blockiert nicht).
-  queueImageGeneration(recipe, slug, process.env.PIXAZO_API_KEY);
+  queueImageGeneration(recipe, slug, process.env.CLOUDFLARE_API_TOKEN);
   queueStepMapping(recipe, slug, process.env.GEMINI_API_KEY);
   return slug;
 }

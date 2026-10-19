@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Erzeugt fehlende Aquarell-Bilder für alle Rezepte in der SQLite-Bibliothek
-// (Pixazo) und legt sie unter <projectRoot>/assets ab + verknüpft sie in der DB.
+// (Cloudflare Workers AI) und legt sie unter <projectRoot>/assets ab + verknüpft sie in der DB.
 // Aufruf (im Container):  docker compose run --rm web node scripts/gen-images-db.ts [--force]
 import { loadDotEnv } from "../core/env.ts";
 import { getProjectRoot } from "../core/paths.ts";
@@ -9,9 +9,9 @@ import { listRecipes, toRecipe } from "../core/services/library.ts";
 
 const root = getProjectRoot();
 loadDotEnv(root);
-const apiKey = process.env.PIXAZO_API_KEY;
+const apiKey = process.env.CLOUDFLARE_API_TOKEN;
 if (!apiKey) {
-  console.error("PIXAZO_API_KEY fehlt.");
+  console.error("CLOUDFLARE_API_TOKEN fehlt.");
   process.exit(1);
 }
 const force = process.argv.includes("--force");

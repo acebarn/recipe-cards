@@ -142,8 +142,8 @@ export const actions: Actions = {
     if (!isAdmin(locals.user)) throw error(403, "Nur Admins dürfen Bilder neu generieren.");
     const r = getRecipeBySlug(params.slug);
     if (!r) throw error(404, "Rezept nicht gefunden");
-    const apiKey = env.PIXAZO_API_KEY;
-    if (!apiKey) return fail(500, { imgError: "Kein PIXAZO_API_KEY konfiguriert." });
+    const apiKey = env.CLOUDFLARE_API_TOKEN;
+    if (!apiKey) return fail(500, { imgError: "Kein CLOUDFLARE_API_TOKEN konfiguriert." });
 
     const subject = String((await request.formData()).get("image_subject") ?? "").trim();
     // image_subject übernehmen; image_prompt leeren, damit der Subject maßgeblich ist.

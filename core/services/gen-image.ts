@@ -1,11 +1,11 @@
-// Bild-Service: KI-Aquarell-Symbol pro Rezept via Pixazo FLUX.1 [schnell].
+// Bild-Service: KI-Aquarell-Symbol pro Rezept via Cloudflare Workers AI (FLUX.1 [schnell]).
 // Reine, wiederverwendbare Logik – genutzt von der Web-App (core/services/image-store.ts).
 // Caching/Datei-Ablage liegt bei den Aufrufern.
 import type { Recipe } from "../model.ts";
 
-// Pixazo FLUX.1 [schnell] — günstig (~$0,0012/Bild), synchroner Flow.
-const ENDPOINT = "https://gateway.pixazo.ai/flux-1-schnell/v1/getData";
-export const DEFAULT_IMAGE_SIZE = 1024; // quadratisch fürs runde Badge
+// Workers AI hat ein kostenloses Tageskontingent; das Modell liefert fest 1024×1024
+// (quadratisch fürs runde Badge) und das Bild als Base64 in der JSON-Antwort.
+const MODEL = "@cf/black-forest-labs/flux-1-schnell";
 export const DEFAULT_IMAGE_STEPS = 4; // schnell-Default (max. 8)
 
 // Aquarell-Stil bewusst ZUERST (FLUX gewichtet frühe Tokens stärker) + explizite
@@ -31,7 +31,7 @@ export function buildImagePrompt(recipe: Recipe): string {
   return `${STYLE_LEAD} of ${subject}. ${STYLE_TAIL}.`;
 }
 
-/** Bestimmt die Dateiendung anhand der Magic Bytes (Pixazo liefert JPEG). */
+/** Bestimmt die Dateiendung anhand der Magic Bytes (Workers AI liefert JPEG). */
 export function extFor(buf: Buffer): "jpg" | "png" | "webp" {
   if (buf[0] === 0xff && buf[1] === 0xd8) return "jpg";
   if (buf[0] === 0x89 && buf[1] === 0x50) return "png";
@@ -46,45 +46,38 @@ export function seedFrom(slug: string): number {
   return h;
 }
 
+/** `apiKey` ist der Cloudflare-API-Token; die Konto-ID kommt aus CLOUDFLARE_ACCOUNT_ID. */
 export async function generate(
   prompt: string,
   apiKey: string,
-  opts: { size: number; steps: number; seed: number },
+  opts: { steps: number; seed: number },
 ): Promise<Buffer> {
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-cache",
-      "Ocp-Apim-Subscription-Key": apiKey,
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!accountId) throw new Error("CLOUDFLARE_ACCOUNT_ID ist nicht gesetzt.");
+
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${MODEL}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ prompt, steps: opts.steps, seed: opts.seed }),
     },
-    body: JSON.stringify({
-      prompt,
-      num_steps: opts.steps,
-      seed: opts.seed,
-      width: opts.size,
-      height: opts.size,
-    }),
-  });
+  );
 
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} ${res.statusText}: ${(await res.text()).slice(0, 300)}`);
   }
 
-  const data = (await res.json()) as { output?: string };
-  if (!data.output) {
-    throw new Error(`Keine Bild-URL in der Antwort: ${JSON.stringify(data).slice(0, 300)}`);
+  const data = (await res.json()) as { result?: { image?: string } };
+  const b64 = data.result?.image;
+  if (!b64) {
+    throw new Error(`Kein Bild in der Antwort: ${JSON.stringify(data).slice(0, 300)}`);
   }
-
-  // Antwort liefert eine URL zum PNG → herunterladen.
-  const img = await fetch(data.output);
-  if (!img.ok) throw new Error(`Bild-Download fehlgeschlagen: HTTP ${img.status} (${data.output})`);
-  return Buffer.from(await img.arrayBuffer());
+  return Buffer.from(b64, "base64");
 }
 
 export interface GenImageOptions {
   apiKey: string;
-  size?: number;
   steps?: number;
   /** Expliziter Seed (z.B. zufällig bei Neugenerierung); sonst deterministisch aus dem Slug. */
   seed?: number;
@@ -97,7 +90,6 @@ export async function generateRecipeImage(
   opts: GenImageOptions,
 ): Promise<{ buffer: Buffer; ext: "jpg" | "png" | "webp" }> {
   const buffer = await generate(buildImagePrompt(recipe), opts.apiKey, {
-    size: opts.size ?? DEFAULT_IMAGE_SIZE,
     steps: opts.steps ?? DEFAULT_IMAGE_STEPS,
     seed: opts.seed ?? seedFrom(slug),
   });
