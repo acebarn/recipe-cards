@@ -1,6 +1,7 @@
 // Bild-Service: KI-Aquarell-Symbol pro Rezept via Cloudflare Workers AI (FLUX.1 [schnell]).
 // Reine, wiederverwendbare Logik – genutzt von der Web-App (core/services/image-store.ts).
-// Caching/Datei-Ablage liegt bei den Aufrufern.
+// Caching/Datei-Ablage liegt bei den Aufrufern. Das Modell nimmt keinen Seed an:
+// jeder Aufruf liefert ein neues Bild, eine Neugenerierung ist also immer „frisch“.
 import type { Recipe } from "../model.ts";
 
 // Workers AI hat ein kostenloses Tageskontingent; das Modell liefert fest 1024×1024
@@ -39,18 +40,11 @@ export function extFor(buf: Buffer): "jpg" | "png" | "webp" {
   return "jpg";
 }
 
-/** Deterministischer Seed aus dem Slug, damit erneute Läufe dasselbe Bild liefern. */
-export function seedFrom(slug: string): number {
-  let h = 0;
-  for (const ch of slug) h = (h * 31 + ch.charCodeAt(0)) % 2147483647;
-  return h;
-}
-
 /** `apiKey` ist der Cloudflare-API-Token; die Konto-ID kommt aus CLOUDFLARE_ACCOUNT_ID. */
 export async function generate(
   prompt: string,
   apiKey: string,
-  opts: { steps: number; seed: number },
+  opts: { steps: number },
 ): Promise<Buffer> {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   if (!accountId) throw new Error("CLOUDFLARE_ACCOUNT_ID ist nicht gesetzt.");
@@ -60,7 +54,7 @@ export async function generate(
     {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ prompt, steps: opts.steps, seed: opts.seed }),
+      body: JSON.stringify({ prompt, steps: opts.steps }),
     },
   );
 
@@ -79,8 +73,6 @@ export async function generate(
 export interface GenImageOptions {
   apiKey: string;
   steps?: number;
-  /** Expliziter Seed (z.B. zufällig bei Neugenerierung); sonst deterministisch aus dem Slug. */
-  seed?: number;
 }
 
 /** High-Level: Rezept + Slug → Bild-Buffer samt erkannter Endung. */
@@ -91,7 +83,6 @@ export async function generateRecipeImage(
 ): Promise<{ buffer: Buffer; ext: "jpg" | "png" | "webp" }> {
   const buffer = await generate(buildImagePrompt(recipe), opts.apiKey, {
     steps: opts.steps ?? DEFAULT_IMAGE_STEPS,
-    seed: opts.seed ?? seedFrom(slug),
   });
   return { buffer, ext: extFor(buffer) };
 }

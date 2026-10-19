@@ -15,9 +15,8 @@ export async function generateAndStoreImage(
   recipe: Recipe,
   slug: string,
   apiKey: string,
-  opts: { seed?: number } = {},
 ): Promise<string> {
-  const { buffer, ext } = await generateRecipeImage(recipe, slug, { apiKey, seed: opts.seed });
+  const { buffer, ext } = await generateRecipeImage(recipe, slug, { apiKey });
   const dir = join(getProjectRoot(), "assets");
   mkdirSync(dir, { recursive: true });
   for (const e of IMG_EXT) {

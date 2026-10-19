@@ -159,10 +159,7 @@ export const actions: Actions = {
     });
 
     try {
-      // Zufalls-Seed → frisches Bild auch bei unverändertem Subject.
-      await generateAndStoreImage(recipe, params.slug, apiKey, {
-        seed: Math.floor(Math.random() * 2147483647),
-      });
+      await generateAndStoreImage(recipe, params.slug, apiKey);
     } catch (e) {
       return fail(502, { imgError: `Bildgenerierung fehlgeschlagen: ${(e as Error).message}` });
     }
